@@ -52,10 +52,6 @@ public:
     // 移除通道监听
     void removeChannel(Channel *channel);
 
-    // 检查通道是否已被注册
-    bool hasChannel(Channel *channel);
-    // 获取最近一次poll操作的返回时间戳
-    [[nodiscard]] Timestamp pollReturnTime() const;
     // 验证当前线程是否属于本事件循环
     [[nodiscard]] bool isInLoopThread() const;
 

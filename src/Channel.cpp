@@ -22,45 +22,6 @@ Channel::~Channel()
     remove();// 自动清理
 }
 
-void Channel::setReadCallback(Channel::ReadEventCallback cb) { readCallback_ = std::move(cb); }
-void Channel::setWriteCallback(Channel::EventCallback cb) { writeCallback_ = std::move(cb); }
-void Channel::setCloseCallback(Channel::EventCallback cb) { closeCallback_ = std::move(cb); }
-void Channel::setErrorCallback(Channel::EventCallback cb) { errorCallback_ = std::move(cb); }
-int Channel::getFd() const { return fd_; }
-int Channel::getEvents() const { return events_; }
-void Channel::setRevents(uint32_t revt) { revents_ = revt; }
-bool Channel::isNoneEvent() const { return events_ == kNoneEvent; }
-bool Channel::isReading() const { return events_ & kReadEvent; }
-bool Channel::isWriting() const { return events_ & kWriteEvent; }
-int Channel::getIndex() const { return index_; }
-void Channel::setIndex(int index) { index_ = index; }
-EventLoop *Channel::ownerLoop() const { return loop_; }
-void Channel::enableReading()
-{
-    events_ |= kReadEvent;
-    update();
-}
-void Channel::disableReading()
-{
-    events_ &= ~kReadEvent;
-    update();
-}
-void Channel::enableWriting()
-{
-    events_ |= kWriteEvent;
-    update();
-}
-void Channel::disableWriting()
-{
-    events_ &= ~kWriteEvent;
-    update();
-}
-void Channel::disableAll()
-{
-    events_ &= kNoneEvent;
-    update();
-}
-
 // 当一个TcpConnection新连接创建的时候，会调用TcpConnection::connectEstablished()，
 // 然后通过channel_->tie(shared_from_this())，将weak_ptr绑定该TcpConnection连接
 void Channel::tie(const std::shared_ptr<void> &obj)
@@ -192,4 +153,42 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
             LOG_DEBUG("No write callback set for fd %d", fd_);
         }
     }
+}
+void Channel::setReadCallback(Channel::ReadEventCallback cb) { readCallback_ = std::move(cb); }
+void Channel::setWriteCallback(Channel::EventCallback cb) { writeCallback_ = std::move(cb); }
+void Channel::setCloseCallback(Channel::EventCallback cb) { closeCallback_ = std::move(cb); }
+void Channel::setErrorCallback(Channel::EventCallback cb) { errorCallback_ = std::move(cb); }
+int Channel::getFd() const { return fd_; }
+int Channel::getEvents() const { return events_; }
+void Channel::setRevents(uint32_t revt) { revents_ = revt; }
+bool Channel::isNoneEvent() const { return events_ == kNoneEvent; }
+bool Channel::isReading() const { return events_ & kReadEvent; }
+bool Channel::isWriting() const { return events_ & kWriteEvent; }
+int Channel::getIndex() const { return index_; }
+void Channel::setIndex(int index) { index_ = index; }
+EventLoop *Channel::ownerLoop() const { return loop_; }
+void Channel::enableReading()
+{
+    events_ |= kReadEvent;
+    update();
+}
+void Channel::disableReading()
+{
+    events_ &= ~kReadEvent;
+    update();
+}
+void Channel::enableWriting()
+{
+    events_ |= kWriteEvent;
+    update();
+}
+void Channel::disableWriting()
+{
+    events_ &= ~kWriteEvent;
+    update();
+}
+void Channel::disableAll()
+{
+    events_ &= kNoneEvent;
+    update();
 }

@@ -179,7 +179,6 @@ void EventLoop::runInLoop(const EventLoop::Functor &cb)
     }
 }
 
-
 /* 异步任务处理联动过程：
 
      外部线程调用 queueInLoop(cb)
@@ -298,15 +297,6 @@ void EventLoop::doPendingFunctors()
     // 必须最后更新状态标志，保证可见性（假设存在内存屏障机制）
     callingPendingFunctors_ = false;
 }
-void EventLoop::updateChannel(Channel *channel)
-{
-    poller_->updateChannel(channel);
-}
-void EventLoop::removeChannel(Channel *channel)
-{
-    poller_->removeChannel(channel);
-}
-bool EventLoop::isInLoopThread() const
-{
-    return threadId_ == CurrentThread::tid();
-}
+void EventLoop::updateChannel(Channel *channel) { poller_->updateChannel(channel); }
+void EventLoop::removeChannel(Channel *channel) { poller_->removeChannel(channel); }
+bool EventLoop::isInLoopThread() const { return threadId_ == CurrentThread::tid(); }

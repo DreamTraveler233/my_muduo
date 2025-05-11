@@ -4,14 +4,14 @@
 
 #include "../include/my_net/Thread.h"
 
-std::atomic_int Thread::numCreated_ = 0;
+std::atomic_int Thread::threadNum_ = 0;
 
 Thread::Thread(Thread::ThreadFunc func, std::string name)
     : started_(false),
       joined_(false),
       tid_(0),
-      func_(std::move(func)),
-      name_(std::move(name))
+      threadFunc_(std::move(func)),
+      threadName_(std::move(name))
 {
     setDefaultName();
 }
@@ -39,8 +39,9 @@ Thread::~Thread()
  */
 void Thread::start()
 {
-    // 设置线程启动状态标志
-    started_ = true;
+    if (started_) {
+        return; // 避免重复启动
+    }
 
     // 初始化无名信号量用于线程间同步
     sem_t sem;
@@ -56,37 +57,18 @@ void Thread::start()
     thread_ = std::make_shared<std::thread>([&]() {
         tid_ = CurrentThread::tid();
         sem_post(&sem);
-        func_();
+        threadFunc_();
     });
 
     // 主线程等待子线程完成tid设置
     sem_wait(&sem);
+    started_ = true;
 }
 
 void Thread::join()
 {
     joined_ = true;
     thread_->join();
-}
-
-bool Thread::started() const
-{
-    return started_;
-}
-
-pid_t Thread::getTid() const
-{
-    return tid_;
-}
-
-const std::string &Thread::getName() const
-{
-    return name_;
-}
-
-int Thread::getNumCreated()
-{
-    return numCreated_;
 }
 
 /**
@@ -102,15 +84,19 @@ int Thread::getNumCreated()
 void Thread::setDefaultName()
 {
     // 原子递增线程计数器并获取当前序号
-    int num = ++numCreated_;
+    int num = ++threadNum_;
 
     // 仅当名称为空时生成默认名称
-    if (name_.empty())
+    if (threadName_.empty())
     {
         // 生成"ThreadX"格式的默认名称，X为递增序号
         // 使用固定大小缓冲区防止内存越界
         char buf[32];
         snprintf(buf, sizeof(buf), "Thread%d", num);
-        name_ = buf;
+        threadName_ = buf;
     }
 }
+bool Thread::started() const { return started_; }
+pid_t Thread::getTid() const { return tid_; }
+const std::string &Thread::getName() const { return threadName_; }
+int Thread::getNumCreated() { return threadNum_; }

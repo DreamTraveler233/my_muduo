@@ -21,10 +21,7 @@ EPollPoller::EPollPoller(EventLoop *loop)
     }
 }
 
-EPollPoller::~EPollPoller()
-{
-    close(epollFd_);// 确保关闭 epoll 描述符
-}
+EPollPoller::~EPollPoller() { close(epollFd_); }
 
 /**
  * @brief 执行一次 epoll_wait 调用，获取就绪事件并填充活跃通道列表
@@ -117,7 +114,7 @@ void EPollPoller::fillActiveChannels(int numEvents, Poller::ChannelList *activeC
     {
         // 从事件结构体直接提取关联的Channel对象（关键性能优化点）
         // 注：该指针由update()操作时通过event.data.ptr设置
-        auto* channel = static_cast<Channel*>(events_[i].data.ptr);
+        auto *channel = static_cast<Channel *>(events_[i].data.ptr);
 
         // 将内核检测到的事件类型回写至Channel（如EPOLLIN/EPOLLOUT）
         // 后续EventLoop将根据revents执行对应回调

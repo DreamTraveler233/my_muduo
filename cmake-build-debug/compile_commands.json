@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/home/szy/code/my_muduo/cmake-build-debug",
+  "command": "/usr/bin/c++   -g -std=gnu++20 -fdiagnostics-color=always -o CMakeFiles/my_muduo.dir/main.cpp.o -c /home/szy/code/my_muduo/main.cpp",
+  "file": "/home/szy/code/my_muduo/main.cpp",
+  "output": "CMakeFiles/my_muduo.dir/main.cpp.o"
+}
+]

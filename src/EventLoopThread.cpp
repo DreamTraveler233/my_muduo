@@ -6,24 +6,16 @@
 
 /**
  * @brief EventLoopThread 构造函数 - 创建事件循环线程对象
- *
  * @param cb 线程初始化回调函数，当事件循环线程启动时会执行该回调（可为空）
  * @param name 线程名称，用于标识和调试目的
- *
- * @note 成员初始化说明：
- * - loop_ 初始化为空，将在线程函数中创建实际的事件循环对象
- * - exiting_ 初始化为 false 表示线程处于运行状态
- * - thread_ 使用 lambda 包装的 threadFunc 作为线程主函数，并设置线程名称
- * - mutex_ 和 cond_ 用于线程同步的条件变量机制
- * - callback_ 通过移动语义保存线程初始化回调函数
  */
 EventLoopThread::EventLoopThread(ThreadInitCallback cb, std::string name)
-    : loop_(nullptr),      // 延迟初始化，将在所属线程创建
-      exiting_(false),     // 线程运行状态标识
-      thread_([this] { threadFunc(); },std::move(name)), // 绑定成员函数作为线程入口
-      mutex_(),            // 默认构造互斥锁
-      cond_(),             // 默认构造条件变量
-      callback_(std::move(cb)) // 移动捕获线程初始化回调
+    : loop_(nullptr),                                    // 延迟初始化，将在所属线程创建
+      exiting_(false),                                   // 线程运行状态标识
+      thread_([this] { threadFunc(); }, std::move(name)),// 绑定成员函数作为线程入口
+      mutex_(),                                          // 默认构造互斥锁
+      cond_(),                                           // 默认构造条件变量
+      callback_(std::move(cb))                           // 移动捕获线程初始化回调
 {}
 
 /**
@@ -33,6 +25,7 @@ EventLoopThread::EventLoopThread(ThreadInitCallback cb, std::string name)
  * 1. 设置退出标志位通知关联线程结束
  * 2. 停止事件循环（如果存在）
  * 3. 等待工作线程结束
+ * @note 自动停止事件循环并等待线程退出，若未调用 startLoop() 则无操作
  */
 EventLoopThread::~EventLoopThread()
 {
@@ -83,15 +76,14 @@ EventLoop *EventLoopThread::startLoop()
 }
 
 /**
- * @brief 新线程入口函数，执行事件循环的创建与运行
+ * @brief 线程入口函数，执行事件循环的初始化和运行
  *
- * 1. 在新线程中创建独立的EventLoop对象，实现"one loop per thread"模型
- * 2. 通过条件变量通知主线程子线程已初始化完成
- * 3. 运行事件循环直到退出
- *
- * 线程安全说明：
- * - 使用互斥锁保护loop_成员的读写操作
- * - 通过条件变量实现线程间同步
+ * 工作流程：
+ * 1. 创建线程专属 EventLoop 对象
+ * 2. 执行初始化回调（若存在）
+ * 3. 通过条件变量通知主线程初始化完成
+ * 4. 启动事件循环（阻塞运行）
+ * 5. 清理阶段重置 loop_ 指针
  */
 void EventLoopThread::threadFunc()
 {

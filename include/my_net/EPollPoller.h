@@ -28,7 +28,7 @@ class EPollPoller : public Poller
 {
 public:
     // 创建 epoll 实例
-    EPollPoller(EventLoop *loop);
+    explicit EPollPoller(EventLoop *loop);
     // 关闭 epoll 文件描述符
     ~EPollPoller() override;
     // 核心事件监听接口，封装 epoll_wait

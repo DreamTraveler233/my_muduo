@@ -2,6 +2,8 @@
 // Created by shuzeyong on 2025/5/1.
 //
 
+#include <utility>
+
 #include "../include/my_net/TcpServer.h"
 
 static EventLoop *CheckLoopNotNull(EventLoop *loop)
@@ -13,10 +15,10 @@ static EventLoop *CheckLoopNotNull(EventLoop *loop)
     return loop;
 }
 
-TcpServer::TcpServer(EventLoop *loop, const InetAddress &listenAddr, const std::string &nameArg, TcpServer::Option option)
+TcpServer::TcpServer(EventLoop *loop, const InetAddress &listenAddr, std::string nameArg, TcpServer::Option option)
     : loop_(CheckLoopNotNull(loop)),
       ipPort_(listenAddr.toIpPort()),
-      name_(nameArg),
+      name_(std::move(nameArg)),
       acceptor_(new Acceptor(loop, listenAddr, option = kReusePort)),
       threadPool_(new EventLoopThreadPool(loop, name_)),
       connectionCallbacl_(),

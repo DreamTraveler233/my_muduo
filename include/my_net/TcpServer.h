@@ -26,7 +26,7 @@ public:
     };
 
     TcpServer(EventLoop *loop, const InetAddress &listenAddr,
-              const std::string &nameArg, Option option = kNoReusePort);
+              std::string nameArg, Option option = kNoReusePort);
     ~TcpServer();
 
     // 设置底层subLoop的个数

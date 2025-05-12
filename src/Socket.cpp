@@ -15,7 +15,7 @@ Socket::Socket(int sockfd)
  * 通过设置SO_KEEPALIVE选项，操作系统会定时检测连接是否存活。
  * 当启用时，若长时间无数据交换，系统会自动发送探测包检测对端状态
  */
-void Socket::setKeepAlive(bool on)
+void Socket::setKeepAlive(bool on) const
 {
     int optval = on ? 1 : 0;
     setsockopt(sockfd_, SOL_SOCKET, SO_KEEPALIVE, &optval, static_cast<socklen_t>(sizeof optval));
@@ -28,7 +28,7 @@ void Socket::setKeepAlive(bool on)
  * 启用SO_REUSEPORT选项后，允许多个进程/线程绑定相同IP和端口组合，
  * 常用于实现负载均衡或高并发服务。需注意操作系统版本兼容性
  */
-void Socket::setReusePort(bool on)
+void Socket::setReusePort(bool on) const
 {
     int optval = on ? 1 : 0;
     setsockopt(sockfd_, SOL_SOCKET, SO_REUSEPORT, &optval, static_cast<socklen_t>(sizeof optval));
@@ -41,7 +41,7 @@ void Socket::setReusePort(bool on)
  * 启用SO_REUSEADDR选项后，允许套接字绑定处于TIME_WAIT状态的本地地址，
  * 可避免服务器重启时出现"地址已在使用"的错误
  */
-void Socket::setReuseAddr(bool on)
+void Socket::setReuseAddr(bool on) const
 {
     int optval = on ? 1 : 0;
     setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, &optval, static_cast<socklen_t>(sizeof optval));
@@ -54,7 +54,7 @@ void Socket::setReuseAddr(bool on)
  * 通过设置TCP_NODELAY选项禁用Nagle算法，可减少小数据包的传输延迟，
  * 适用于需要低延迟的实时通信场景。启用后数据将立即发送不缓冲
  */
-void Socket::setTcpNoDelay(bool on)
+void Socket::setTcpNoDelay(bool on) const
 {
     int optval = on ? 1 : 0;
     setsockopt(sockfd_, IPPROTO_TCP, TCP_NODELAY, &optval, static_cast<socklen_t>(sizeof optval));
@@ -122,12 +122,5 @@ void Socket::bind(const InetAddress &localaddr) const
     }
 }
 
-int Socket::getFd() const
-{
-    return sockfd_;
-}
-
-Socket::~Socket()
-{
-    close(sockfd_);
-}
+int Socket::getFd() const { return sockfd_; }
+Socket::~Socket() { close(sockfd_); }

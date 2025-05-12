@@ -35,7 +35,7 @@ static int createNonblocking()
  * @param listenAddr 需要绑定的网络地址信息（IP+端口）
  * @param reuseport 是否启用SO_REUSEPORT选项（允许多个进程绑定相同端口）
  */
-Acceptor::Acceptor(EventLoop *loop, InetAddress listenAddr, bool reuseport)
+Acceptor::Acceptor(EventLoop *loop, const InetAddress &listenAddr, bool reuseport)
     : loop_(loop),
       acceptSocket_(createNonblocking()),// 创建套接字
       acceptChannel_(loop, acceptSocket_.getFd()),
@@ -46,7 +46,7 @@ Acceptor::Acceptor(EventLoop *loop, InetAddress listenAddr, bool reuseport)
     acceptSocket_.setReusePort(reuseport);
 
     // 将套接字绑定到指定网络地址
-    acceptSocket_.bind(std::move(listenAddr));
+    acceptSocket_.bind(listenAddr);
 
     // 设置读事件回调，当监听套接字可读时（有新连接）触发handleRead
     acceptChannel_.setReadCallback(std::bind(&Acceptor::handleRead, this));
@@ -54,35 +54,17 @@ Acceptor::Acceptor(EventLoop *loop, InetAddress listenAddr, bool reuseport)
 
 /**
  * @brief Acceptor类的析构函数，负责资源清理工作
- *
- * 在对象生命周期结束时，停止所有网络事件监听并移除底层channel资源。
- * 主要流程：
- * 1. 禁用acceptChannel_上的所有事件监听（如读/写/错误事件）
- * 2. 从事件循环中完全移除该channel，防止后续事件触发
  */
 Acceptor::~Acceptor()
 {
+    // 禁用acceptChannel_上的所有事件监听（如读/写/错误事件）
     acceptChannel_.disableAll();
+    // 从事件循环（mainLoop）中完全移除该channel，防止后续事件触发
     acceptChannel_.remove();
-}
-
-void Acceptor::setNewConnectionCallback(Acceptor::NewConnectionCallback cb)
-{
-    newConnectionCallback_ = std::move(cb);
-}
-
-bool Acceptor::getListenning()
-{
-    return listenning_;
 }
 
 /**
  * @brief 启动服务器监听功能
- *
- * 该函数完成以下核心操作：
- * 1. 设置监听状态标志位
- * 2. 激活底层套接字的监听模式
- * 3. 启用事件通道的读事件监听功能
  */
 void Acceptor::listen()
 {
@@ -97,44 +79,63 @@ void Acceptor::listen()
 }
 
 /**
- * @brief 处理新连接请求的回调函数
+ * @brief 处理新连接到达的读事件回调函数
  *
- * 当监听套接字有可读事件时触发，表示有新客户端连接到达。
- * 主要流程：
- * 1. 接受新连接，获取客户端地址信息
- * 2. 若连接成功，通过回调函数分发新连接
- * 3. 若没有设置回调则立即关闭连接
- * 4. 处理accept可能发生的错误（含EMFILE特殊错误处理）
+ * 该函数在网络监听套接字可读时被触发，执行accept操作接收新连接，
+ * 并根据是否设置回调函数进行后续处理。包含完整的错误处理逻辑，
+ * 特别注意处理EMFILE(进程文件描述符耗尽)等关键错误情况。
+ *
+ * @note 本函数没有参数和返回值，属于类成员函数
  */
 void Acceptor::handleRead()
 {
-    // 接受新连接并获取客户端地址信息
     InetAddress peerAddr;
-    int coonfd = acceptSocket_.accept(&peerAddr);
+    int connfd = acceptSocket_.accept(&peerAddr);
 
-    if (coonfd >= 0)
+    // 成功接收新连接时的处理流程
+    if (connfd >= 0)
     {
-        /* 成功建立连接时的处理逻辑 */
+        /* 检查是否设置了新连接回调函数
+         * - 若已设置：将新连接交给上层处理
+         * - 未设置：立即关闭连接并记录错误日志
+         */
         if (newConnectionCallback_)
         {
-            // 将新连接的文件描述符和地址通过回调函数转发
-            // 回调函数负责将连接分发到子事件循环
-            newConnectionCallback_(coonfd, peerAddr);
+            newConnectionCallback_(connfd, peerAddr);
         }
         else
         {
-            // 未设置回调时直接关闭连接
-            close(coonfd);
+            close(connfd);
+            LOG_ERROR("No connection callback set, closing fd: %d", connfd);
         }
     }
+    // 处理accept失败的各种错误情况
     else
     {
-        /* accept系统调用失败处理 */
-        LOG_ERROR("%s:%s:%d accept error:%d \n", __FILE__, __FUNCTION__, __LINE__, errno);
-        if (errno == EMFILE)
+        /* 错误处理优先级：
+         * 1. 非阻塞模式下的正常返回（EAGAIN/EWOULDBLOCK）
+         * 2. 进程文件描述符耗尽（EMFILE）
+         * 3. 可恢复的系统中断（EINTR）或客户端中止（ECONNABORTED）
+         * 4. 其他未知错误
+         */
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
         {
-            // 处理文件描述符耗尽的情况
-            LOG_ERROR("%s:%s:%d sockfd reached limit \n", __FILE__, __FUNCTION__, __LINE__);
+            return;
+        }
+        else if (errno == EMFILE)
+        {
+            LOG_ERROR("%s:%s:%d Too many open files", __FILE__, __FUNCTION__, __LINE__);
+        }
+        else if (errno == EINTR || errno == ECONNABORTED)
+        {
+            LOG_DEBUG("Accept error: %s (errno=%d)", strerror(errno), errno);
+        }
+        else
+        {
+            LOG_ERROR("%s:%s:%d accept error:%d", __FILE__, __FUNCTION__, __LINE__, errno);
         }
     }
 }
+
+void Acceptor::setNewConnectionCallback(Acceptor::NewConnectionCallback cb) { newConnectionCallback_ = std::move(cb); }
+bool Acceptor::getListenning() const { return listenning_; }

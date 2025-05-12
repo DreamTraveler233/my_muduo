@@ -93,7 +93,7 @@ void Channel::handleEvent(Timestamp receiveTime)
  */
 void Channel::handleEventWithGuard(Timestamp receiveTime)
 {
-    LOG_INFO("channel handleEvent returnEvent:%d\n", revents_);
+    LOG_INFO("channel fd=%d handleEvent returnEvent:%d\n",getFd(), revents_);
 
     // 1. 处理错误事件（EPOLLERR 优先级最高）
     // EPOLLERR 表示文件描述符发生了错误

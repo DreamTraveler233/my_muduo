@@ -4,8 +4,6 @@
 
 #include "../include/my_net/TcpConnection.h"
 
-#include <utility>
-
 static EventLoop *CheckLoopNotNull(EventLoop *loop)
 {
     if (loop == nullptr)
@@ -25,10 +23,10 @@ static EventLoop *CheckLoopNotNull(EventLoop *loop)
  * @param peerAddr 对端网络地址信息
  *
  * 初始化流程：
- * 1. 验证事件循环有效性
- * 2. 设置初始状态为kConnecting(连接建立中)
- * 3. 创建socket和channel核心组件
- * 4. 初始化64MB高水位标记(用于流量控制)
+ * 1. 绑定事件循环并验证有效性
+ * 2. 初始化socket和channel
+ * 3. 配置默认高水位阈值（64MB）
+ * 4. 注册Channel的四大事件回调
  */
 TcpConnection::TcpConnection(EventLoop *loop,
                              std::string nameArg,
@@ -37,7 +35,7 @@ TcpConnection::TcpConnection(EventLoop *loop,
                              const InetAddress &peerAddr)
     : loop_(CheckLoopNotNull(loop)),// 强制校验事件循环有效性
       name_(std::move(nameArg)),
-      state_(kConnecting),                // 初始连接状态
+      state_(kConnecting),                // 初始连接状态（正在连接）
       reading_(true),                     // 默认启用读事件监听
       socket_(new Socket(sockfd)),        // 封装socket描述符
       channel_(new Channel(loop, sockfd)),// 创建事件通道
@@ -46,10 +44,10 @@ TcpConnection::TcpConnection(EventLoop *loop,
       highWaterMark_(64 * 1024 * 1024)    // 设置64MB高水位缓冲区限制
 {
     // 配置channel的四个核心回调：将网络事件转发到TcpConnection的处理方法
-    channel_->setReadCallback(std::bind(&TcpConnection::handleRead, this, std::placeholders::_1));
-    channel_->setWriteCallback(std::bind(&TcpConnection::handleWrite, this));
-    channel_->setCloseCallback(std::bind(&TcpConnection::handleClose, this));
-    channel_->setErrorCallback(std::bind(&TcpConnection::handleError, this));
+    channel_->setReadCallback([this](auto && PH1) { handleRead(std::forward<decltype(PH1)>(PH1)); });
+    channel_->setWriteCallback([this] { handleWrite(); });
+    channel_->setCloseCallback([this] { handleClose(); });
+    channel_->setErrorCallback([this] { handleError(); });
 
     // 调试日志记录连接创建信息
     LOG_DEBUG("TcpConnection::ctor[%s] at this fd=%d \n", name_.c_str(), sockfd);
@@ -77,52 +75,75 @@ void TcpConnection::send(const std::string &buf)
     if (state_ == kConnected)
     {
         // 在事件循环线程中异步调用sendInLoop函数来发送数据
-        loop_->runInLoop(std::bind(
-                &TcpConnection::sendInLoop,
-                this,
-                buf.c_str(),
-                buf.size()));
+        loop_->runInLoop(
+                [This = shared_from_this(), capture0 = buf.c_str(), capture1 = buf.size()] {
+                    This->sendInLoop(capture0, capture1);
+                });
     }
 }
 
+/**
+ * @brief 在事件循环线程中执行实际数据发送（核心发送逻辑）
+ *
+ * 该函数执行实际的发送操作，处理以下情况：
+ * - 直接写入socket的可能性
+ * - 部分写入时的缓冲区管理
+ * - 错误处理与连接状态管理
+ * - 高水位回调触发
+ *
+ * @param data 待发送数据的起始地址
+ * @param len 待发送数据的长度
+ *
+ * 执行流程：
+ * 1. 连接状态验证：若已断开则中止发送
+ * 2. 直接发送尝试：当满足条件时尝试直接写入socket
+ * 3. 错误处理：处理EWOULDBLOCK及其他致命错误
+ * 4. 缓冲区管理：将未发送数据存入outputBuffer_
+ * 5. 事件注册：当需要继续发送时启用EPOLLOUT事件监听
+ * 6. 高水位控制：当缓冲区超过阈值时触发流量控制回调
+ */
 void TcpConnection::sendInLoop(const void *data, size_t len)
 {
-    ssize_t nwrote = 0;     // 已写入的字节数
-    size_t remaining = len; // 剩余未发送的字节数
-    bool faultError = false;// 是否发生严重错误
+    ssize_t nwrote = 0;     // 实际写入socket的字节数
+    size_t remaining = len; // 剩余待发送字节数
+    bool faultError = false;// 致命错误标志（EPIPE/ECONNRESET）
 
-    // 如果连接已断开，记录错误并返回
+    // 前置状态检查：确保连接尚未断开
     if (state_ == kDisconnected)
     {
         LOG_ERROR("disconnected, give up writing");
         return;
     }
 
-    /* 如果是首次调用 send 时，输出缓冲区为空，且未监听可写事件，尝试直接写入数据，
-     * 此时直接尝试写入数据，无需等待事件触发，减少延迟
+    /* 直接写入优化路径：当满足以下条件时尝试直接写入socket
+     * 1. 输出缓冲区为空（没有待发送的遗留数据）
+     * 2. 未注册写事件监听（说明之前没有发送阻塞的情况）
      */
     if (!channel_->isWriting() && outputBuffer_.readableBytes() == 0)
     {
-        // 尝试直接将数据写入tcp的写缓冲区
+        // 尝试非阻塞写入（可能部分成功）
         nwrote = write(channel_->getFd(), data, len);
 
-        if (nwrote >= 0)
+        if (nwrote >= 0)// 成功写入部分或全部数据
         {
             remaining = len - nwrote;
-            // 既然在这里数据全部发送完毕了，就不用再给channel设置epollout事件了
+            // 既然在这里数据全部发送完毕了，就不用再给channel设置handleWrite()事件了
             // 即不再监听tcp读缓冲区什么时候有空间，如果有注册写完成回调则调用
             if (remaining == 0 && writeCompleteCallback_)
             {
-                loop_->queueInLoop(std::bind(writeCompleteCallback_, shared_from_this()));
+                // 延迟触发写完成回调（确保回调在IO线程执行）
+                loop_->queueInLoop([This = shared_from_this()] {
+                    This->writeCompleteCallback_(This);
+                });
             }
         }
-        else// nwrote < 0
+        else// 写入出错处理
         {
             nwrote = 0;
             // 如果错误不是EWOULDBLOCK，记录错误并根据错误类型设置faultError标志
             if (errno != EWOULDBLOCK)
             {
-                LOG_ERROR("TcpConnection::sendInLoop");
+                LOG_ERROR("%s : %d : %s", __FILE__, __LINE__, __FUNCTION__);
                 if (errno == EPIPE || errno == ECONNRESET)
                 {
                     faultError = true;
@@ -137,15 +158,22 @@ void TcpConnection::sendInLoop(const void *data, size_t len)
     if (!faultError && remaining > 0)
     {
         size_t oldLen = outputBuffer_.readableBytes();// 目前发送缓冲区中剩余的待发送数据的长度
-        // 如果输出缓冲区中的数据量超过高水位标记且存在高水位回调，则调用回调
-        if (oldLen + remaining >= highWaterMark_ && oldLen < highWaterMark_ && highWaterMarkCallback_)
+        // 高水位检测：当前缓冲区大小+新数据是否超过阈值
+        if (oldLen + remaining >= highWaterMark_ &&
+            oldLen < highWaterMark_ &&
+            highWaterMarkCallback_)
         {
-            loop_->queueInLoop(std::bind(highWaterMarkCallback_, shared_from_this(), oldLen + remaining));
+            // 触发高水位回调（流量控制通知），该高水位回调函数由用户设置
+            // 当输出缓冲区超过阈值时，通知应用层暂停发送数据，避免缓冲区无限膨胀（如内存耗尽）
+            loop_->queueInLoop([This = shared_from_this(), val = oldLen + remaining] {
+                This->highWaterMarkCallback_(This, val);
+            });
         }
 
-        // 将剩余数据追加到输出缓冲区
+        // 数据追加到输出缓冲区
         outputBuffer_.append(static_cast<const char *>(data) + nwrote, remaining);
-        // 如果当前没有写操作，则启用写事件监听
+
+        // 注册写事件监听（当内核发送缓冲区可用时触发handleWrite）
         if (!channel_->isWriting())
         {
             channel_->enableWriting();
@@ -153,30 +181,51 @@ void TcpConnection::sendInLoop(const void *data, size_t len)
     }
 }
 
-// 关闭连接
+/**
+ * @brief 关闭TCP连接
+ *
+ * 功能说明：
+ * - 当连接处于已连接状态时，启动优雅关闭流程：
+ *   1. 将连接状态置为断开中(kDisconnecting)
+ *   2. 通过事件循环异步执行底层关闭操作
+ *
+ * 注意：
+ * - 必须通过事件循环线程执行以保证线程安全
+ * - 实际关闭操作由shutdownInLoop()在事件循环线程完成
+ */
 void TcpConnection::shutdown()
 {
     if (state_ == kConnected)
     {
         setState(kDisconnecting);
-        loop_->runInLoop(std::bind(&TcpConnection::shutdownInLoop, this));
+
+        loop_->runInLoop([This = shared_from_this()] {
+            This->shutdownInLoop();
+        });
     }
 }
 
 /**
- * @brief 在事件循环中关闭TCP连接的写端。
+ * @brief 在事件循环中安全关闭TCP连接的写端
  *
- * 该函数用于在事件循环中安全地关闭TCP连接的写端。首先检查是否还有数据正在通过outputBuffer发送，
- * 如果没有数据正在发送，则关闭socket的写端，并触发socket的EPOLLHUP事件，调用channel的closeCallback回调函数，
- * 而channel的closeCallback是由TcpConnection注册的，所以最终调用的是用户设置的TcpConnection::handleClose
+ * 该函数处理TCP连接写端关闭逻辑，确保在事件循环中无数据发送时才执行关闭。
+ * 主要流程：
+ * 1. 检查输出缓冲区是否正在发送数据（通过channel_的写状态判断）；
+ * 2. 若没有数据在发送，立即关闭socket的SHUT_WR半关闭，停止写入操作；
+ * 3. 关闭写端会触发EPOLLHUP事件，进而通过channel_的closeCallback回调
+ *    通知上层连接关闭事件，该回调最终指向TcpConnection::handleClose，
+ *    使得用户自定义的连接关闭逻辑能被正确执行。
+ *
+ * @note 必须在IO事件循环线程中调用，避免多线程竞争
  */
 void TcpConnection::shutdownInLoop()
 {
-    // 检查是否还有数据正在通过outputBuffer发送
+    // 关键条件判断：仅当输出通道无待发送数据时才能立即关闭写端
     if (!channel_->isWriting())
     {
-        // 如果没有数据正在发送，则关闭socket的写端
-        // 触发socket的EPOLLHUP事件，channel调用closeCallback回调函数
+        // 执行半关闭操作，触发后续连接关闭事件链
+        // shutdownWrite()将发送FIN包，通知对端不再发送数据
+        // 同时使epoll监听到EPOLLHUP事件，激活closeCallback
         socket_->shutdownWrite();
     }
 }
@@ -244,34 +293,34 @@ void TcpConnection::connectDestroyed()
 void TcpConnection::handleRead(Timestamp receiveTime)
 {
     int savedErrno = 0;
+    // 从fd的读缓冲区中读取数据到用户的读缓冲区中
     ssize_t n = inputBuffer_.readFd(channel_->getFd(), &savedErrno);
 
-    // 成功读取数据：调用用户注册的消息回调函数
-    if (n > 0)
+    if (n > 0)// 成功读取数据：调用用户注册的消息回调函数
     {
         messageCallback_(shared_from_this(), &inputBuffer_, receiveTime);
     }
-    // 客户端主动关闭连接：执行关闭处理流程
-    else if (n == 0)
+    else if (n == 0)// 客户端主动关闭连接：执行关闭处理流程
     {
         handleClose();
     }
-    // 读取发生错误：记录日志并执行错误处理
-    else
+    else// 读取发生错误：记录日志并执行用户设置的错误处理
     {
         errno = savedErrno;
-        LOG_ERROR("TcpConnection::handleRead");
+        LOG_ERROR("%s : %d : %s", __FILE__, __LINE__, __FUNCTION__);
         handleError();
     }
 }
 
 /**
- * @brief 处理TCP连接的可写事件
+ * @brief 处理TCP发送缓冲区的数据冲刷与状态机协调
  *
- * 当内核发送缓冲区有可用空间时触发该函数，主要完成以下工作：
- * 1. 将应用层输出缓冲区数据写入socket发送缓冲区
- * 2. 管理写事件的注册与注销
- * 3. 处理写完成回调及连接关闭逻辑
+ * 核心设计目标：在非阻塞IO模型下实现可靠的数据传输，平衡吞吐量与资源消耗
+ *
+ * 关键设计考量：
+ * 1. 流量自适应 - 通过动态注册/注销EPOLLOUT事件避免无意义的忙等待（ET模式下持续触发）
+ * 2. 优雅关闭保障 - 确保在关闭前完成所有待发送数据的传输
+ * 3. 线程模型安全 - 所有IO操作限制在单一IO线程，避免多线程竞态
  */
 void TcpConnection::handleWrite()
 {
@@ -279,13 +328,13 @@ void TcpConnection::handleWrite()
     if (channel_->isWriting())
     {
         int savedErrno = 0;
-        // 将输出缓冲区数据写入socket文件描述符
+        // 非阻塞写入：将输出缓冲区数据尽可能多地写入socket
         ssize_t n = outputBuffer_.writeFd(channel_->getFd(), &savedErrno);
 
-        // 成功写入数据的情况处理
+        // 成功写入数据的处理流程
         if (n > 0)
         {
-            // 从缓冲区中移除已成功发送的数据
+            // 更新缓冲区状态，移动读指针以释放已发送数据占用的空间
             outputBuffer_.retrieve(n);
 
             // 当输出缓冲区数据全部发送完毕时的处理
@@ -294,11 +343,12 @@ void TcpConnection::handleWrite()
                 // 停止监听写事件（避免busy loop）
                 channel_->disableWriting();
 
-                // 执行写完成回调（如果已设置）
+                // 执行写完成回调（如果已设置），表示用户写缓冲区有空间了
                 if (writeCompleteCallback_)
                 {
-                    // 唤醒loop_对应的thread线程，执行回调
-                    loop_->queueInLoop(std::bind(writeCompleteCallback_, shared_from_this()));
+                    loop_->queueInLoop([This = shared_from_this()] {
+                        This->writeCompleteCallback_(This);
+                    });
                 }
 
                 // 当outputBuffer中的数据全部发送完毕时，如果连接状态为kDisconnecting则表示在某处已经调用了shutdown，
@@ -311,7 +361,7 @@ void TcpConnection::handleWrite()
         }
         else// 写入失败处理
         {
-            LOG_ERROR("TcpConnection::handleWrite");
+            LOG_ERROR("%s : %d : %s", __FILE__, __LINE__, __FUNCTION__);
         }
     }
     else// 连接已断开时的错误处理
@@ -322,18 +372,11 @@ void TcpConnection::handleWrite()
 
 /**
  * @brief 处理TCP连接的关闭流程
- *
- * 该函数在TCP连接需要关闭时被调用，负责执行以下操作：
- * 1. 记录连接状态变更日志
- * 2. 更新连接状态为已断开
- * 3. 关闭底层通道的事件监听
- * 4. 维持连接对象生命周期（防止回调期间被提前析构）
- * 5. 触发连接相关回调函数
  */
 void TcpConnection::handleClose()
 {
     // 记录连接关闭时的关键信息：文件描述符和当前状态
-    LOG_INFO("TcpConnection::handleClose fd = %d state = %d \n", channel_->getFd(), (int) state_);
+    LOG_DEBUG("%s fd = %d state = %d \n",__FUNCTION__ channel_->getFd(), (int) state_);
 
     // 将连接状态标记为已断开
     setState(kDisconnected);

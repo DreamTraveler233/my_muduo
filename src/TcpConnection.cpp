@@ -156,10 +156,10 @@ void TcpConnection::sendInLoop(const void *data, size_t len)
 // 关闭连接
 void TcpConnection::shutdown()
 {
-    if(state_ == kConnected)
+    if (state_ == kConnected)
     {
         setState(kDisconnecting);
-        loop_->runInLoop(std::bind(&TcpConnection::shutdownInLoop,this));
+        loop_->runInLoop(std::bind(&TcpConnection::shutdownInLoop, this));
     }
 }
 
@@ -173,7 +173,7 @@ void TcpConnection::shutdown()
 void TcpConnection::shutdownInLoop()
 {
     // 检查是否还有数据正在通过outputBuffer发送
-    if(!channel_->isWriting())
+    if (!channel_->isWriting())
     {
         // 如果没有数据正在发送，则关闭socket的写端
         // 触发socket的EPOLLHUP事件，channel调用closeCallback回调函数
@@ -217,7 +217,7 @@ void TcpConnection::connectEstablished()
 void TcpConnection::connectDestroyed()
 {
     // 如果当前连接状态为已连接，则执行以下操作
-    if(state_ == kConnected)
+    if (state_ == kConnected)
     {
         // 将连接状态设置为断开连接
         setState(kDisconnected);
@@ -381,58 +381,19 @@ void TcpConnection::handleError()
     LOG_ERROR("TcpConnection::handleError name [%s] - SO_ERROR = %d \n", name_.c_str(), err);
 }
 
-EventLoop *TcpConnection::getLoop() const
-{
-    return loop_;
-}
-const std::string &TcpConnection::getName() const
-{
-    return name_;
-}
-const InetAddress &TcpConnection::getLocalAddress() const
-{
-    return localAddr_;
-}
-const InetAddress &TcpConnection::getPeerAddress() const
-{
-    return peerAddr_;
-}
-Buffer *TcpConnection::getInputBuffer()
-{
-    return &inputBuffer_;
-}
-Buffer *TcpConnection::getOutputBuffer()
-{
-    return &outputBuffer_;
-}
-bool TcpConnection::isConnected() const
-{
-    return state_ == kConnected;
-}
-bool TcpConnection::isDisconnected() const
-{
-    return state_ == kDisconnected;
-}
-void TcpConnection::setState(TcpConnection::StateE state)
-{
-    state_ = state;
-}
-void TcpConnection::setConnectionCallback(const ConnectionCallback &cb)
-{
-    connectionCallback_ = cb;
-}
-void TcpConnection::setMessageCallback(const MessageCallback &cb)
-{
-    messageCallback_ = cb;
-}
-void TcpConnection::setWriteCompleteCallback(const WriteCompleteCallback &cb)
-{
-    writeCompleteCallback_ = cb;
-}
-void TcpConnection::setCloseCallback(const CloseCallback &cb)
-{
-    closeCallback_ = cb;
-}
+EventLoop *TcpConnection::getLoop() const { return loop_; }
+const std::string &TcpConnection::getName() const { return name_; }
+const InetAddress &TcpConnection::getLocalAddress() const { return localAddr_; }
+const InetAddress &TcpConnection::getPeerAddress() const { return peerAddr_; }
+Buffer *TcpConnection::getInputBuffer() { return &inputBuffer_; }
+Buffer *TcpConnection::getOutputBuffer() { return &outputBuffer_; }
+bool TcpConnection::isConnected() const { return state_ == kConnected; }
+bool TcpConnection::isDisconnected() const { return state_ == kDisconnected; }
+void TcpConnection::setState(TcpConnection::StateE state) { state_ = state; }
+void TcpConnection::setConnectionCallback(const ConnectionCallback &cb) { connectionCallback_ = cb; }
+void TcpConnection::setMessageCallback(const MessageCallback &cb) { messageCallback_ = cb; }
+void TcpConnection::setWriteCompleteCallback(const WriteCompleteCallback &cb) { writeCompleteCallback_ = cb; }
+void TcpConnection::setCloseCallback(const CloseCallback &cb) { closeCallback_ = cb; }
 void TcpConnection::setHighWaterMarkCallback(const HighWaterMarkCallback &cb, size_t highWaterMark)
 {
     highWaterMarkCallback_ = cb;

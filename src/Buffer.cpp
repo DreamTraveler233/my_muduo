@@ -10,44 +10,6 @@ Buffer::Buffer(size_t initialSize)
       writerIndex_(kCheapPrepend)
 {}
 
-size_t Buffer::readableBytes() const
-{
-    return writerIndex_ - readerIndex_;
-}
-size_t Buffer::prependableBytes() const
-{
-    return readerIndex_;
-}
-size_t Buffer::writableBytes() const
-{
-    return buffer_.size() - writerIndex_;
-}
-const char *Buffer::begin() const
-{
-    return &*buffer_.begin();
-}
-char *Buffer::begin()
-{
-    return &*buffer_.begin();
-}
-const char *Buffer::beginRead() const
-{
-    return begin() + readerIndex_;
-}
-char *Buffer::beginRead()
-{
-    return begin() + readerIndex_;
-}
-char *Buffer::beginWrite()
-{
-    return begin() + writerIndex_;
-}
-const char *Buffer::beginWrite() const
-{
-    return begin() + writerIndex_;
-}
-
-
 /**
  * @brief 移动读指针向前推进指定长度，处理缓冲区数据消费操作
  *
@@ -71,18 +33,7 @@ void Buffer::retrieve(size_t len)
     }
 }
 
-/**
- * @brief 重置缓冲区读写位置到初始状态
- *
- * 该函数用于清空缓冲区内容，将读写指针重置到预留空间的起始位置。
- * 常用于复用缓冲区内存空间，或准备接收新的数据包。
- */
-void Buffer::retrieveAll()
-{
-    // 同时重置读索引和写索引到预分配的起始位置
-    // 该操作本质上清空了缓冲区，但保留了预分配的空间
-    readerIndex_ = writerIndex_ = kCheapPrepend;
-}
+
 
 /**
  * @brief 获取缓冲区中所有可读数据并以字符串形式返回
@@ -118,62 +69,6 @@ std::string Buffer::retrieveAsString(size_t len)
     // 更新缓冲区状态：将已读取的len字节移出缓冲区
     retrieve(len);
     return result;
-}
-
-/**
- * @brief 确保缓冲区有足够可写空间
- *
- * 检查当前可写字节数是否满足需求，若剩余空间不足则通过makeSpace()方法
- * 扩展缓冲区空间。该方法是缓冲区自动扩容机制的核心接口。
- *
- * @param len 需要的最小可写字节数，类型为无符号整型size_t
- * @return void 无返回值
- */
-void Buffer::ensureWritableBytes(size_t len)
-{
-    // 当剩余可写空间不足时，执行空间扩展操作
-    if (writableBytes() < len)
-    {
-        // 调用内部空间分配方法，具体扩容策略由makeSpace实现
-        makeSpace(len);
-    }
-}
-
-/**
- * @brief 调整缓冲区空间以满足指定长度的写入需求
- *
- * 该函数根据当前空间情况选择扩容缓冲区或移动数据，确保至少有len字节的可写空间。
- * 当可写空间和前置空闲空间总和不足时进行扩容，否则通过移动数据优化空间利用率。
- *
- * @param len 需要保证的最小连续可写空间长度
- */
-void Buffer::makeSpace(size_t len)
-{
-    /*
-     * 扩容前：
-     * |  kCheapPrepend  |    reader   |    writer   |
-     * 需要的空间大小：
-     * |  kCheapPrepend  |             len             |
-     * 因为writableBytes() + prependableBytes() < len + kCheapPrepend，
-     * 所以必须进行扩容，将写缓冲区的大小设置为len，防止过度扩容
-     *
-     * 扩容后：
-     * |  kCheapPrepend  |    reader   |             len             |
-     */
-
-    // 空间不足时执行扩容操作
-    if (writableBytes() + prependableBytes() < len + kCheapPrepend)
-    {
-        buffer_.resize(writerIndex_ + len);
-    }
-    // 空间足够时移动数据到缓冲区前端以腾出连续空间
-    else
-    {
-        size_t readable = readableBytes();
-        std::copy(begin() + readerIndex_, begin() + writerIndex_, begin() + kCheapPrepend);
-        readerIndex_ = kCheapPrepend;
-        writerIndex_ = readerIndex_ + readable;
-    }
 }
 
 /**
@@ -272,3 +167,82 @@ ssize_t Buffer::writeFd(int fd, int *savedErrno)
     }
     return n;
 }
+
+/**
+ * @brief 重置缓冲区读写位置到初始状态
+ *
+ * 该函数用于清空缓冲区内容，将读写指针重置到预留空间的起始位置。
+ * 常用于复用缓冲区内存空间，或准备接收新的数据包。
+ */
+void Buffer::retrieveAll()
+{
+    // 同时重置读索引和写索引到预分配的起始位置
+    // 该操作本质上清空了缓冲区，但保留了预分配的空间
+    readerIndex_ = writerIndex_ = kCheapPrepend;
+}
+
+/**
+ * @brief 调整缓冲区空间以满足指定长度的写入需求
+ *
+ * 该函数根据当前空间情况选择扩容缓冲区或移动数据，确保至少有len字节的可写空间。
+ * 当可写空间和前置空闲空间总和不足时进行扩容，否则通过移动数据优化空间利用率。
+ *
+ * @param len 需要保证的最小连续可写空间长度
+ */
+void Buffer::makeSpace(size_t len)
+{
+    /*
+     * 扩容前：
+     * |  kCheapPrepend  |    reader   |    writer   |
+     * 需要的空间大小：
+     * |  kCheapPrepend  |             len             |
+     * 因为writableBytes() + prependableBytes() < len + kCheapPrepend，
+     * 所以必须进行扩容，将写缓冲区的大小设置为len，防止过度扩容
+     *
+     * 扩容后：
+     * |  kCheapPrepend  |    reader   |             len             |
+     */
+
+    // 空间不足时执行扩容操作
+    if (writableBytes() + prependableBytes() < len + kCheapPrepend)
+    {
+        buffer_.resize(writerIndex_ + len);
+    }
+    // 空间足够时移动数据到缓冲区前端以腾出连续空间
+    else
+    {
+        size_t readable = readableBytes();
+        std::copy(begin() + readerIndex_, begin() + writerIndex_, begin() + kCheapPrepend);
+        readerIndex_ = kCheapPrepend;
+        writerIndex_ = readerIndex_ + readable;
+    }
+}
+
+/**
+ * @brief 确保缓冲区有足够可写空间
+ *
+ * 检查当前可写字节数是否满足需求，若剩余空间不足则通过makeSpace()方法
+ * 扩展缓冲区空间。该方法是缓冲区自动扩容机制的核心接口。
+ *
+ * @param len 需要的最小可写字节数，类型为无符号整型size_t
+ * @return void 无返回值
+ */
+void Buffer::ensureWritableBytes(size_t len)
+{
+    // 当剩余可写空间不足时，执行空间扩展操作
+    if (writableBytes() < len)
+    {
+        // 调用内部空间分配方法，具体扩容策略由makeSpace实现
+        makeSpace(len);
+    }
+}
+
+size_t Buffer::readableBytes() const { return writerIndex_ - readerIndex_; }
+size_t Buffer::prependableBytes() const { return readerIndex_; }
+size_t Buffer::writableBytes() const { return buffer_.size() - writerIndex_; }
+const char *Buffer::begin() const { return buffer_.data(); }
+char *Buffer::begin() { return buffer_.data(); }
+const char *Buffer::beginRead() const { return begin() + readerIndex_; }
+char *Buffer::beginRead() { return begin() + readerIndex_; }
+char *Buffer::beginWrite() { return begin() + writerIndex_; }
+const char *Buffer::beginWrite() const { return begin() + writerIndex_; }

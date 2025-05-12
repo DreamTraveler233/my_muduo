@@ -249,7 +249,12 @@ CMakeFiles/my_muduo.dir/EventLoopThread.cpp.o: \
  /usr/include/c++/13/bits/this_thread_sleep.h \
  /usr/include/x86_64-linux-gnu/sys/time.h /usr/include/semaphore.h \
  /usr/include/x86_64-linux-gnu/bits/semaphore.h \
- /usr/include/c++/13/condition_variable \
+ /usr/include/c++/13/condition_variable /usr/include/netinet/tcp.h \
+ /usr/include/c++/13/algorithm /usr/include/c++/13/bits/ranges_algo.h \
+ /usr/include/c++/13/pstl/glue_algorithm_defs.h \
+ /usr/include/x86_64-linux-gnu/sys/uio.h \
+ /usr/include/x86_64-linux-gnu/bits/uio-ext.h /usr/include/c++/13/cstring \
+ /usr/include/string.h /usr/include/strings.h \
  /home/szy/code/my_muduo/Timestamp.h \
  /home/szy/code/my_muduo/CurrentThread.h /home/szy/code/my_muduo/Poller.h \
  /home/szy/code/my_muduo/Thread.h

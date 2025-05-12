@@ -17,7 +17,7 @@ static EventLoop *CheckLoopNotNull(EventLoop *loop)
  * @brief TcpConnection构造函数 - 创建TCP连接对象并初始化核心组件
  *
  * @param loop 所属EventLoop事件循环对象指针(不可为空)
- * @param nameArg 连接名称标识符
+ * @param name 连接名称标识符
  * @param sockfd 已建立的socket文件描述符
  * @param localAddr 本地网络地址信息
  * @param peerAddr 对端网络地址信息
@@ -29,12 +29,12 @@ static EventLoop *CheckLoopNotNull(EventLoop *loop)
  * 4. 注册Channel的四大事件回调
  */
 TcpConnection::TcpConnection(EventLoop *loop,
-                             std::string nameArg,
+                             std::string name,
                              int sockfd,
                              const InetAddress &localAddr,
                              const InetAddress &peerAddr)
     : loop_(CheckLoopNotNull(loop)),// 强制校验事件循环有效性
-      name_(std::move(nameArg)),
+      name_(std::move(name)),
       state_(kConnecting),                // 初始连接状态（正在连接）
       reading_(true),                     // 默认启用读事件监听
       socket_(new Socket(sockfd)),        // 封装socket描述符

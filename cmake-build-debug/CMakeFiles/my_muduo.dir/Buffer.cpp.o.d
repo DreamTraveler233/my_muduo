@@ -250,4 +250,5 @@ CMakeFiles/my_muduo.dir/Buffer.cpp.o: /home/szy/code/my_muduo/Buffer.cpp \
  /usr/include/c++/13/algorithm /usr/include/c++/13/bits/ranges_algo.h \
  /usr/include/c++/13/pstl/glue_algorithm_defs.h \
  /usr/include/x86_64-linux-gnu/sys/uio.h \
- /usr/include/x86_64-linux-gnu/bits/uio-ext.h
+ /usr/include/x86_64-linux-gnu/bits/uio-ext.h /usr/include/c++/13/cstring \
+ /usr/include/string.h /usr/include/strings.h

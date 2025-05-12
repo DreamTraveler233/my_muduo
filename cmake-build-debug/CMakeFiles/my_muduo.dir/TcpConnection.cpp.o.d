@@ -251,7 +251,8 @@ CMakeFiles/my_muduo.dir/TcpConnection.cpp.o: \
  /usr/include/c++/13/algorithm /usr/include/c++/13/bits/ranges_algo.h \
  /usr/include/c++/13/pstl/glue_algorithm_defs.h \
  /usr/include/x86_64-linux-gnu/sys/uio.h \
- /usr/include/x86_64-linux-gnu/bits/uio-ext.h \
+ /usr/include/x86_64-linux-gnu/bits/uio-ext.h /usr/include/c++/13/cstring \
+ /usr/include/string.h /usr/include/strings.h \
  /home/szy/code/my_muduo/Callbacks.h /home/szy/code/my_muduo/Channel.h \
  /home/szy/code/my_muduo/EventLoop.h \
  /home/szy/code/my_muduo/CurrentThread.h \

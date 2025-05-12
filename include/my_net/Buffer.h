@@ -50,6 +50,8 @@ public:
     std::string retrieveAllAsString();
     // 提取指定长度的数据为字符串，并移动 readerIndex
     std::string retrieveAsString(size_t len);
+    // 清空可读区域（readerIndex 移动到 writerIndex）
+    void retrieveAll();
 
     /*数据追加*/
     // 向缓冲区尾部追加数据
@@ -76,8 +78,6 @@ private:
     void makeSpace(size_t len);
     // 确保缓冲区中有至少 len 字节的可写空间，必要时扩容或移动数据
     void ensureWritableBytes(size_t len);
-    // 清空可读区域（readerIndex 移动到 writerIndex）
-    void retrieveAll();
 
     std::vector<char> buffer_;          // 实际存储数据的容器
     size_t readerIndex_ = kCheapPrepend;// 当前可读位置索引

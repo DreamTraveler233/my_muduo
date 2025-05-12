@@ -30,17 +30,6 @@ std::string InetAddress::toIpPort() const
     return oss.str();
 }
 
-uint16_t InetAddress::toPort() const
-{
-    return ntohs(addr_.sin_port);
-}
-
-const sockaddr_in &InetAddress::getSockAddr() const
-{
-    return addr_;
-}
-
-void InetAddress::setSockAddr(const sockaddr_in &addr)
-{
-    addr_ = addr;
-}
+uint16_t InetAddress::toPort() const { return ntohs(addr_.sin_port); }
+const sockaddr_in &InetAddress::getSockAddr() const { return addr_; }
+void InetAddress::setSockAddr(const sockaddr_in &addr) { addr_ = addr; }

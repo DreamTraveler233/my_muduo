@@ -11,9 +11,6 @@ public:
         : server_(loop, addr, name),
           loop_(loop)
     {
-        // 注册回调函数
-        server_.setConnectionCallback(
-                std::bind(&EchoServer::onConnection, this, std::placeholders::_1));
         server_.setMessageCallback(
                 std::bind(&EchoServer::onMessage, this,
                           std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
@@ -28,25 +25,12 @@ public:
     }
 
 private:
-    // 连接建立和连接断开的回调函数
-    void onConnection(const TcpConnectionPtr &conn)
-    {
-        if (conn->isConnected())
-        {
-            LOG_INFO("Connection UP : %s", conn->getPeerAddress().toIpPort().c_str());
-        }
-        else
-        {
-            LOG_INFO("Connection DOWN : %s", conn->getPeerAddress().toIpPort().c_str());
-        }
-    }
-
     // 可读写事件回调函数
     void onMessage(const TcpConnectionPtr &conn, Buffer *buf, Timestamp time)
     {
         std::string msg = buf->retrieveAllAsString();
         conn->send(msg);
-        conn->shutdown();// 关闭服务器写端
+        conn->shutdown();
     }
 
     EventLoop *loop_;

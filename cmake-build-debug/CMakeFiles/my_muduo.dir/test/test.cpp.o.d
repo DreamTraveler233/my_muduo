@@ -1,12 +1,12 @@
 CMakeFiles/my_muduo.dir/test/test.cpp.o: \
  /home/szy/code/my_muduo/test/test.cpp /usr/include/stdc-predef.h \
- /home/szy/code/my_muduo/test/../TcpServer.h \
- /home/szy/code/my_muduo/test/../Acceptor.h \
- /home/szy/code/my_muduo/test/../Channel.h \
- /home/szy/code/my_muduo/test/../EventLoop.h \
- /home/szy/code/my_muduo/test/../CurrentThread.h \
- /home/szy/code/my_muduo/test/../SysHeadFile.h /usr/include/c++/13/atomic \
- /usr/include/c++/13/bits/atomic_base.h \
+ /home/szy/code/my_muduo/test/../include/my_net/TcpServer.h \
+ /home/szy/code/my_muduo/test/../include/my_net/Acceptor.h \
+ /home/szy/code/my_muduo/test/../include/my_net/Channel.h \
+ /home/szy/code/my_muduo/test/../include/my_net/EventLoop.h \
+ /home/szy/code/my_muduo/test/../include/my_net/CurrentThread.h \
+ /home/szy/code/my_muduo/test/../include/my_net/SysHeadFile.h \
+ /usr/include/c++/13/atomic /usr/include/c++/13/bits/atomic_base.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/os_defines.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -257,15 +257,15 @@ CMakeFiles/my_muduo.dir/test/test.cpp.o: \
  /usr/include/x86_64-linux-gnu/sys/uio.h \
  /usr/include/x86_64-linux-gnu/bits/uio-ext.h /usr/include/c++/13/cstring \
  /usr/include/string.h /usr/include/strings.h \
- /home/szy/code/my_muduo/test/../NonCopyable.h \
- /home/szy/code/my_muduo/test/../Poller.h \
- /home/szy/code/my_muduo/test/../Timestamp.h \
- /home/szy/code/my_muduo/test/../Logger.h \
- /home/szy/code/my_muduo/test/../Socket.h \
- /home/szy/code/my_muduo/test/../InetAddress.h \
- /home/szy/code/my_muduo/test/../Callbacks.h \
- /home/szy/code/my_muduo/test/../EventLoopThreadpool.h \
- /home/szy/code/my_muduo/test/../EventLoopThread.h \
- /home/szy/code/my_muduo/test/../Thread.h \
- /home/szy/code/my_muduo/test/../TcpConnection.h \
- /home/szy/code/my_muduo/test/../Buffer.h
+ /home/szy/code/my_muduo/test/../include/my_net/NonCopyable.h \
+ /home/szy/code/my_muduo/test/../include/my_net/Poller.h \
+ /home/szy/code/my_muduo/test/../include/my_net/Timestamp.h \
+ /home/szy/code/my_muduo/test/../include/my_net/Logger.h \
+ /home/szy/code/my_muduo/test/../include/my_net/Socket.h \
+ /home/szy/code/my_muduo/test/../include/my_net/InetAddress.h \
+ /home/szy/code/my_muduo/test/../include/my_net/Callbacks.h \
+ /home/szy/code/my_muduo/test/../include/my_net/EventLoopThreadpool.h \
+ /home/szy/code/my_muduo/test/../include/my_net/EventLoopThread.h \
+ /home/szy/code/my_muduo/test/../include/my_net/Thread.h \
+ /home/szy/code/my_muduo/test/../include/my_net/TcpConnection.h \
+ /home/szy/code/my_muduo/test/../include/my_net/Buffer.h

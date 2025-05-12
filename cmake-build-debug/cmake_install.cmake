@@ -1,4 +1,4 @@
-# Install script for directory: /tmp/tmp.d0ZD1Tk5hu/my_muduo
+# Install script for directory: /home/szy/code/my_muduo
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -50,5 +50,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/tmp/tmp.d0ZD1Tk5hu/my_muduo/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/szy/code/my_muduo/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

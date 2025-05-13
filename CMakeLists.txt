@@ -41,4 +41,7 @@ add_executable(my_muduo
         src/Buffer.cpp
         include/net/Buffer.h
         test/test.cpp
+        include/net/ngx_mem_pool.h
+        src/ngx_mem_pool.cpp
+        include/net/thread_pool.h
 )

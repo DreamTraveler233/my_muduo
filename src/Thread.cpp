@@ -2,7 +2,9 @@
 // Created by shuzeyong on 2025/5/7.
 //
 
-#include "../include/my_net/Thread.h"
+#include "../include/net/Thread.h"
+
+using namespace net;
 
 std::atomic_int Thread::threadNum_ = 0;
 

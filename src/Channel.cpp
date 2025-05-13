@@ -2,7 +2,9 @@
 // Created by shuzeyong on 2025/5/1.
 //
 
-#include "../include/my_net/Channel.h"
+#include "../include/net/Channel.h"
+
+using namespace net;
 
 const int Channel::kNoneEvent = 0;
 const int Channel::kReadEvent = EPOLLIN | EPOLLPRI;

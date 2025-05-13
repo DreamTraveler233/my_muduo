@@ -2,7 +2,9 @@
 // Created by shuzeyong on 2025/5/8.
 //
 
-#include "../include/my_net/Buffer.h"
+#include "../include/net/Buffer.h"
+
+using namespace net;
 
 Buffer::Buffer(size_t initialSize)
     : buffer_(kCheapPrepend + initialSize),

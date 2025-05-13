@@ -2,7 +2,9 @@
 // Created by shuzeyong on 2025/5/1.
 //
 
-#include "../include/my_net/EventLoop.h"
+#include "../include/net/EventLoop.h"
+
+using namespace net;
 
 // 防止一个线程创建多个EventLoop
 __thread EventLoop *t_loopInThisThread = nullptr;

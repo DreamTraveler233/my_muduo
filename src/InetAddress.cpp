@@ -2,7 +2,9 @@
 // Created by shuzeyong on 2025/5/1.
 //
 
-#include "../include/my_net/InetAddress.h"
+#include "../include/net/InetAddress.h"
+
+using namespace net;
 
 InetAddress::InetAddress(uint16_t port, const std::string &ip)
 {

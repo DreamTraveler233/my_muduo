@@ -2,7 +2,9 @@
 // Created by shuzeyong on 2025/5/8.
 //
 
-#include "../include/my_net/Socket.h"
+#include "../include/net/Socket.h"
+
+using namespace net;
 
 Socket::Socket(int sockfd)
     : sockfd_(sockfd)

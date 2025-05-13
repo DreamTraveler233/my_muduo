@@ -2,7 +2,9 @@
 // Created by shuzeyong on 2025/5/1.
 //
 
-#include "../include/my_net/Timestamp.h"
+#include "../include/net/Timestamp.h"
+
+using namespace net;
 
 Timestamp::Timestamp()
     : microSecondsSinceEpoch_(0)

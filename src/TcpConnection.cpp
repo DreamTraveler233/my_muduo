@@ -2,7 +2,9 @@
 // Created by shuzeyong on 2025/5/8.
 //
 
-#include "../include/my_net/TcpConnection.h"
+#include "../include/net/TcpConnection.h"
+
+using namespace net;
 
 static EventLoop *CheckLoopNotNull(EventLoop *loop)
 {

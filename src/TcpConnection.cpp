@@ -34,7 +34,8 @@ TcpConnection::TcpConnection(EventLoop *loop,
                              std::string name,
                              int sockfd,
                              const InetAddress &localAddr,
-                             const InetAddress &peerAddr)
+                             const InetAddress &peerAddr,
+                             std::shared_ptr<thp::ThreadPool> threadPool)
     : loop_(CheckLoopNotNull(loop)),// 强制校验事件循环有效性
       name_(std::move(name)),
       state_(kConnecting),                // 初始连接状态（正在连接）
@@ -43,10 +44,11 @@ TcpConnection::TcpConnection(EventLoop *loop,
       channel_(new Channel(loop, sockfd)),// 创建事件通道
       localAddr_(localAddr),              // 存储本地地址
       peerAddr_(peerAddr),                // 存储对端地址
+      threadPool_(std::move(threadPool)), // 线程池
       highWaterMark_(64 * 1024 * 1024)    // 设置64MB高水位缓冲区限制
 {
     // 配置channel的四个核心回调：将网络事件转发到TcpConnection的处理方法
-    channel_->setReadCallback([this](auto && PH1) { handleRead(std::forward<decltype(PH1)>(PH1)); });
+    channel_->setReadCallback([this](auto &&PH1) { handleRead(std::forward<decltype(PH1)>(PH1)); });
     channel_->setWriteCallback([this] { handleWrite(); });
     channel_->setCloseCallback([this] { handleClose(); });
     channel_->setErrorCallback([this] { handleError(); });
@@ -60,7 +62,7 @@ TcpConnection::TcpConnection(EventLoop *loop,
 
 TcpConnection::~TcpConnection()
 {
-    LOG_INFO("TcpConnection::dtor[%s] at fd=%d state=%d", name_.c_str(), channel_->getFd(), (int) state_);
+    LOG_INFO("TcpConnection::dtor[%s] at fd=%d state=%d", name_.c_str(), channel_->getFd(), static_cast<int>(state_));
 }
 
 /**
@@ -378,7 +380,7 @@ void TcpConnection::handleWrite()
 void TcpConnection::handleClose()
 {
     // 记录连接关闭时的关键信息：文件描述符和当前状态
-    LOG_DEBUG("%s fd = %d state = %d \n",__FUNCTION__ channel_->getFd(), (int) state_);
+    LOG_DEBUG("%s fd = %d state = %d \n", __FUNCTION__ channel_->getFd(), (int) state_);
 
     // 将连接状态标记为已断开
     setState(kDisconnected);
@@ -434,13 +436,14 @@ Buffer *TcpConnection::getInputBuffer() { return &inputBuffer_; }
 Buffer *TcpConnection::getOutputBuffer() { return &outputBuffer_; }
 bool TcpConnection::isConnected() const { return state_ == kConnected; }
 bool TcpConnection::isDisconnected() const { return state_ == kDisconnected; }
+std::shared_ptr<thp::ThreadPool> TcpConnection::getThreadPool() { return threadPool_; }
 void TcpConnection::setState(TcpConnection::StateE state) { state_ = state; }
-void TcpConnection::setConnectionCallback(const ConnectionCallback &cb) { connectionCallback_ = cb; }
-void TcpConnection::setMessageCallback(const MessageCallback &cb) { messageCallback_ = cb; }
-void TcpConnection::setWriteCompleteCallback(const WriteCompleteCallback &cb) { writeCompleteCallback_ = cb; }
-void TcpConnection::setCloseCallback(const CloseCallback &cb) { closeCallback_ = cb; }
-void TcpConnection::setHighWaterMarkCallback(const HighWaterMarkCallback &cb, size_t highWaterMark)
+void TcpConnection::setConnectionCallback(ConnectionCallback cb) { connectionCallback_ = std::move(cb); }
+void TcpConnection::setMessageCallback(MessageCallback cb) { messageCallback_ = std::move(cb); }
+void TcpConnection::setWriteCompleteCallback(WriteCompleteCallback cb) { writeCompleteCallback_ = std::move(cb); }
+void TcpConnection::setCloseCallback(CloseCallback cb) { closeCallback_ = std::move(cb); }
+void TcpConnection::setHighWaterMarkCallback(HighWaterMarkCallback cb, size_t highWaterMark)
 {
-    highWaterMarkCallback_ = cb;
+    highWaterMarkCallback_ = std::move(cb);
     highWaterMark_ = highWaterMark;
 }

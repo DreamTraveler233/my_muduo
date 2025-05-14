@@ -13,6 +13,7 @@
 #include "NonCopyable.h"
 #include "Socket.h"
 #include "SysHeadFile.h"
+#include "ThreadPool.h"
 #include "Timestamp.h"
 
 namespace net
@@ -36,10 +37,11 @@ namespace net
     {
     public:
         TcpConnection(EventLoop *loop,
-                      std::string nameArg,
+                      std::string name,
                       int sockfd,
                       const InetAddress &localAddr,
-                      const InetAddress &peerAddr);
+                      const InetAddress &peerAddr,
+                      std::shared_ptr<thp::ThreadPool> threadPool);
 
         ~TcpConnection();
 
@@ -50,6 +52,7 @@ namespace net
         const InetAddress &getPeerAddress() const; // 获取对端地址信息
         Buffer *getInputBuffer();                  // 获取输入缓冲区指针
         Buffer *getOutputBuffer();                 // 获取输出缓冲区指针
+        std::shared_ptr<thp::ThreadPool> getThreadPool();           // 获取线程池
 
         //------------------------- 连接状态判断接口 -------------------------
         bool isConnected() const;   // 判断是否处于已连接状态
@@ -60,11 +63,11 @@ namespace net
         void shutdown();                  // 主动关闭连接（半关闭模式）
 
         //------------------------- 回调设置接口 -------------------------
-        void setConnectionCallback(const ConnectionCallback &cb);      // 设置连接状态变化回调
-        void setMessageCallback(const MessageCallback &cb);            // 设置数据到达回调
-        void setWriteCompleteCallback(const WriteCompleteCallback &cb);// 设置写完成回调
-        void setCloseCallback(const CloseCallback &cb);                // 设置连接关闭回调
-        void setHighWaterMarkCallback(const HighWaterMarkCallback &cb, // 设置高水位回调
+        void setConnectionCallback(ConnectionCallback cb);      // 设置连接状态变化回调
+        void setMessageCallback(MessageCallback cb);            // 设置数据到达回调
+        void setWriteCompleteCallback(WriteCompleteCallback cb);// 设置写完成回调
+        void setCloseCallback(CloseCallback cb);                // 设置连接关闭回调
+        void setHighWaterMarkCallback(HighWaterMarkCallback cb, // 设置高水位回调
                                       size_t highWaterMark);
 
         //------------------------- 生命周期管理接口 -------------------------
@@ -105,6 +108,8 @@ namespace net
         const InetAddress localAddr_;// 本地地址信息（IP+Port）
         const InetAddress peerAddr_; // 对端地址信息（IP+Port）
 
+        std::shared_ptr<thp::ThreadPool> threadPool_;
+
         //------------------------- 回调函数对象 -------------------------
         ConnectionCallback connectionCallback_;      // 连接建立/断开时触发
         MessageCallback messageCallback_;            // 数据到达时触发
@@ -117,6 +122,6 @@ namespace net
         Buffer inputBuffer_; // 输入缓冲区（存储接收数据）
         Buffer outputBuffer_;// 输出缓冲区（存储待发送数据）
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_TCPCONNECTION_H

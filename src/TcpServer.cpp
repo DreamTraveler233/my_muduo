@@ -31,7 +31,7 @@ void defaultConnectionCallback(const TcpConnectionPtr &conn)
  * @brief 默认的TCP消息回调函数，用于处理接收到的TCP消息。
  *        该函数会清空接收缓冲区中的所有数据，通常用于忽略接收到的消息或进行简单的数据清理。
  */
-void defaultMessageCallback(const TcpConnectionPtr &conn, Buffer *buf, Timestamp)
+void defaultMessageCallback(const TcpConnectionPtr &, Buffer *buf, Timestamp)
 {
     buf->retrieveAll();
 }
@@ -52,7 +52,7 @@ TcpServer::TcpServer(EventLoop *loop,
       ipPort_(listenAddr.toIpPort()),                                 // 获取监听地址的 IP 和端口字符串
       name_(std::move(name)),                                         // 移动服务器名称到成员变量
       acceptor_(new Acceptor(loop, listenAddr, option == kReusePort)),// 创建 Acceptor 对象，用于接受新连接
-      threadPool_(new EventLoopThreadPool(loop, name_)),              // 创建事件循环线程池，用于处理连接
+      EventLoopThreadPool_(new EventLoopThreadPool(loop, name_)),     // 创建事件循环线程池，用于处理连接
       connectionCallback_(defaultConnectionCallback),                 // 初始化默认的连接回调函数
       messageCallback_(defaultMessageCallback),                       // 初始化默认的消息回调函数
       nextConnId_(1),                                                 // 初始化下一个连接 ID 为 1
@@ -127,15 +127,15 @@ void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr)
 
     // 从线程池中选择一个事件循环（subLoop）来处理新连接
     // 使用轮询（Round-Robin）算法分配，确保负载均衡
-    EventLoop *ioLoop = threadPool_->getNextLoop();
+    EventLoop *ioLoop = EventLoopThreadPool_->getNextLoop();
 
     // 创建TcpConnection对象，管理新连接的通信
     TcpConnectionPtr conn(new TcpConnection(ioLoop,   // 连接所在的EventLoop
                                             connName, // 连接名称
                                             sockfd,   // accept返回的connfd
                                             localAddr,// 服务端地址
-                                            peerAddr  // accept返回的客户端地址
-                                            ));
+                                            peerAddr, // accept返回的客户端地址
+                                            std::move(threadPool_)));
     connections_[connName] = conn;// 将连接管理到ConnectionMap中
 
     // 设置用户回调函数：这些回调由TcpServer的用户定义（如业务逻辑处理）
@@ -202,21 +202,35 @@ void TcpServer::start()
     if (started_++ == 0)// 防止一个TcpServer对象被多次start
     {
         // 启动线程池处理IO事件，threadInitCallback_用于线程初始化配置
-        threadPool_->start(threadInitCallback_);
+        EventLoopThreadPool_->start(threadInitCallback_);
 
-        // 在事件循环线程中启动监听器，保证线程安全性
-        // 将Acceptor::listen绑定到EventLoop的执行队列
-        // 确保 listen() 在 mainLoop 线程中执行
+        // 校验线程池配置参数是否合法
+        if (!threadPoolConfig_.validate())
+        {
+            LOG_FATAL("thread pool config error！");
+        }
+
+        // 按配置初始化线程池
+        threadPool_ = std::make_shared<thp::ThreadPool>();// 安全创建threadPool_对象
+        threadPool_->setMode(threadPoolConfig_.mode);
+        threadPool_->setThreadMaxSize(threadPoolConfig_.threadMaxSize);
+        threadPool_->setTaskQueMaxSize(threadPoolConfig_.taskQueMaxSize);
+        threadPool_->setThreadIdleMaxTime(threadPoolConfig_.threaMaxIdleTime);
+        threadPool_->start(threadPoolConfig_.initThreadSize);// 启动线程池
+
+        // 在mainLoop中启动监听器Acceptpr，开始监听新连接
         loop_->runInLoop([acceptor = acceptor_.get()] { acceptor->listen(); });
     }
 }
 
-std::shared_ptr<EventLoopThreadPool> TcpServer::getThreadPool() { return threadPool_; }
+std::shared_ptr<EventLoopThreadPool> TcpServer::getThreadPool() { return EventLoopThreadPool_; }
 EventLoop *TcpServer::getLoop() const { return loop_; }
 const std::string &TcpServer::getName() const { return name_; }
 const std::string &TcpServer::getIpPort() const { return ipPort_; }
-void TcpServer::setWriteCompleteCallback(const WriteCompleteCallback &cb) { writeCompleteCallback_ = cb; }
-void TcpServer::setMessageCallback(const MessageCallback &cb) { messageCallback_ = cb; }
-void TcpServer::setConnectionCallback(const ConnectionCallback &cb) { connectionCallback_ = cb; }
-void TcpServer::setThreadInitCallback(const TcpServer::ThreadInitCallback &cb) { threadInitCallback_ = cb; }
-void TcpServer::setThreadNum(int numThreads) { threadPool_->setNumThread(numThreads); }
+void TcpServer::setWriteCompleteCallback(WriteCompleteCallback cb) { writeCompleteCallback_ = std::move(cb); }
+void TcpServer::setMessageCallback(MessageCallback cb) { messageCallback_ = std::move(cb); }
+void TcpServer::setConnectionCallback(ConnectionCallback cb) { connectionCallback_ = std::move(cb); }
+void TcpServer::setThreadInitCallback(TcpServer::ThreadInitCallback cb) { threadInitCallback_ = std::move(cb); }
+void TcpServer::setThreadNum(int numThreads) { EventLoopThreadPool_->setNumThread(numThreads); }
+void TcpServer::setThreadPoolConfig(thp::ThreadPoolConfig config) { threadPoolConfig_ = std::move(config); }
+thp::ThreadPoolConfig TcpServer::getThreadPoolConfig() const { return threadPoolConfig_; }

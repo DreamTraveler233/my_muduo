@@ -30,5 +30,8 @@
 #include <algorithm>
 #include <sys/uio.h>
 #include <cstring>
+#include <atomic>
+#include <future>
+#include <queue>
 
 #endif//MY_MUDUO_SYSHEADFILE_H

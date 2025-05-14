@@ -1,8 +1,8 @@
 #ifndef THREADPOOL_THREAD_POOL_H
 #define THREADPOOL_THREAD_POOL_H
 
-#include "SysHeadFile.h"
-#include "NonCopyable.h"
+#include "../net/NonCopyable.h"
+#include "../net/SysHeadFile.h"
 
 namespace thp
 {
@@ -16,10 +16,9 @@ namespace thp
      */
     enum class PoolMode
     {
-        MODE_FIXED, //!< 固定数量的线程
-        MODE_CACHED //!< 线程数量可动态增长
+        MODE_FIXED,//!< 固定数量的线程
+        MODE_CACHED//!< 线程数量可动态增长
     };
-
 
     /**
      * @class Thread
@@ -28,7 +27,7 @@ namespace thp
     class Thread
     {
     public:
-        using ThreadFunc = std::function<void(size_t)>; //!< 线程函数对象类型
+        using ThreadFunc = std::function<void(size_t)>;//!< 线程函数对象类型
 
         /**
          * @brief 构造函数，初始化线程
@@ -65,9 +64,9 @@ namespace thp
         }
 
     private:
-        ThreadFunc threadFunc_;                //!< 线程执行函数
-        inline static std::atomic_uint generateId_ = 0; //!< 线程ID生成器
-        size_t threadId_;                      //!< 线程ID
+        ThreadFunc threadFunc_;                        //!< 线程执行函数
+        inline static std::atomic_uint generateId_ = 0;//!< 线程ID生成器
+        size_t threadId_;                              //!< 线程ID
     };
 
     /**
@@ -156,7 +155,7 @@ namespace thp
             }
             threadMaxIdleTime = size;
         }
-        
+
         /**
          * @brief 设置线程池最大线程数
          * @param size 线程池最大线程数
@@ -287,7 +286,7 @@ namespace thp
                 idleThreadSize_++;   // 增加空闲线程计数
             }
         }
-        
+
     private:
         /**
          * @brief 线程函数，用于从任务队列中取出任务并执行
@@ -401,7 +400,7 @@ namespace thp
         size_t threadMaxIdleTime;                                    //!< 线程最大空闲时间
         std::atomic_uint idleThreadSize_;                            //!< 空闲线程数量
         std::atomic_uint currentThreadSize_;                         //!< 当前线程数量
-                                                          
+
         /*====================任务相关变量====================*/
         using Task = std::function<void()>;
         std::queue<Task> taskQue_;        //!< 任务队列

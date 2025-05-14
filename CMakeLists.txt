@@ -43,6 +43,5 @@ add_executable(my_muduo
         test/test.cpp
         include/net/MenoryPool.h
         src/MenoryPool.cpp
-        include/net/ThreadPool.h
-        "include/net/ThreadPoolConfig .h"
+        include/thp/ThreadPool.h
 )

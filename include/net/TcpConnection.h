@@ -9,12 +9,9 @@
 #include "Callbacks.h"
 #include "Channel.h"
 #include "InetAddress.h"
-#include "Logger.h"
 #include "NonCopyable.h"
 #include "Socket.h"
 #include "SysHeadFile.h"
-#include "ThreadPool.h"
-#include "Timestamp.h"
 
 namespace net
 {
@@ -40,8 +37,7 @@ namespace net
                       std::string name,
                       int sockfd,
                       const InetAddress &localAddr,
-                      const InetAddress &peerAddr,
-                      std::shared_ptr<thp::ThreadPool> threadPool);
+                      const InetAddress &peerAddr);
 
         ~TcpConnection();
 
@@ -52,7 +48,6 @@ namespace net
         const InetAddress &getPeerAddress() const; // 获取对端地址信息
         Buffer *getInputBuffer();                  // 获取输入缓冲区指针
         Buffer *getOutputBuffer();                 // 获取输出缓冲区指针
-        std::shared_ptr<thp::ThreadPool> getThreadPool();           // 获取线程池
 
         //------------------------- 连接状态判断接口 -------------------------
         bool isConnected() const;   // 判断是否处于已连接状态
@@ -107,8 +102,6 @@ namespace net
 
         const InetAddress localAddr_;// 本地地址信息（IP+Port）
         const InetAddress peerAddr_; // 对端地址信息（IP+Port）
-
-        std::shared_ptr<thp::ThreadPool> threadPool_;
 
         //------------------------- 回调函数对象 -------------------------
         ConnectionCallback connectionCallback_;      // 连接建立/断开时触发

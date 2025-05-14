@@ -55,7 +55,6 @@ namespace net
         // 清空可读区域（readerIndex 移动到 writerIndex）
         void retrieveAll();
 
-        /*数据追加*/
         // 向缓冲区尾部追加数据
         void append(const char *data, size_t len);
 

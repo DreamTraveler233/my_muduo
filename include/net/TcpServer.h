@@ -14,7 +14,6 @@
 #include "NonCopyable.h"
 #include "SysHeadFile.h"
 #include "TcpConnection.h"
-#include "ThreadPoolConfig .h"
 
 namespace net
 { /**
@@ -43,9 +42,6 @@ namespace net
         /// 设置工作线程数量（subLoop数量）
         void setThreadNum(int numThreads);
 
-        /// 配置线程池参数
-        void setThreadPoolConfig(thp::ThreadPoolConfig config);
-
         /// 启动服务器，开始监听端口
         void start();
 
@@ -60,7 +56,6 @@ namespace net
         const std::string &getName() const;                  // 获取服务器名称
         EventLoop *getLoop() const;                          // 获取主事件循环
         std::shared_ptr<EventLoopThreadPool> getThreadPool();// 获取线程池指针
-        thp::ThreadPoolConfig getThreadPoolConfig() const;        // 获取线程池参数配置
 
     private:
         // 处理新连接到达（由Acceptor回调）
@@ -79,9 +74,6 @@ namespace net
         std::unique_ptr<Acceptor> acceptor_;// 连接接收器（运行在baseloop）
 
         std::shared_ptr<EventLoopThreadPool> EventLoopThreadPool_;// 事件循环线程池
-
-        thp::ThreadPoolConfig threadPoolConfig_;     // 线程池参数配置
-        std::shared_ptr<thp::ThreadPool> threadPool_;// 线程池，用于处理回调中耗时的操作
 
         // 事件回调函数对象
         ConnectionCallback connectionCallback_;      // 新连接建立/关闭时回调

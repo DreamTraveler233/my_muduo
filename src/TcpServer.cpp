@@ -36,14 +36,6 @@ void defaultMessageCallback(const TcpConnectionPtr &, Buffer *buf, Timestamp)
     buf->retrieveAll();
 }
 
-/**
- * @brief TcpServer 构造函数，用于初始化 TCP 服务器。
- *
- * @param loop 事件循环对象指针，用于处理 I/O 事件。不能为空，否则会触发断言。
- * @param listenAddr 服务器监听的地址，包含 IP 和端口信息。
- * @param name 服务器的名称，用于标识该服务器实例。
- * @param option 服务器选项，用于配置服务器的行为，例如是否重用端口。
- */
 TcpServer::TcpServer(EventLoop *loop,
                      const InetAddress &listenAddr,
                      std::string name,
@@ -67,13 +59,6 @@ TcpServer::TcpServer(EventLoop *loop,
             });
 }
 
-/**
- * @brief TcpServer类的析构函数。
- *
- * 该析构函数负责释放TcpServer对象所占用的资源，并确保所有已建立的TcpConnection对象被正确销毁。
- * 在析构过程中，会遍历所有已建立的连接，并通过事件循环机制调用每个连接的connectDestroyed方法，
- * 以确保连接资源被安全释放。
- */
 TcpServer::~TcpServer()
 {
     // 记录日志，表示TcpServer对象正在析构
@@ -94,15 +79,6 @@ TcpServer::~TcpServer()
     }
 }
 
-/**
- * @brief 处理新客户端连接的回调函数
- *
- * 当有新客户端连接时，acceptor会调用此函数。该函数负责为新连接选择一个事件循环（subLoop），
- * 创建TcpConnection对象，并将其添加到连接管理器中。
- *
- * @param sockfd 新连接的套接字文件描述符
- * @param peerAddr 对端（客户端）的地址信息
- */
 void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr)
 {
     // 生成唯一的连接名称，格式为：服务器名称@连接ID（例如：Server@1）
@@ -161,14 +137,6 @@ void TcpServer::removeConnection(const TcpConnectionPtr &conn)
     loop_->runInLoop([this, conn] { removeConnectionInLoop(conn); });
 }
 
-/**
- * @brief 在事件循环中移除指定的TCP连接。
- *
- * 该函数负责在事件循环中安全地移除一个TCP连接。它会从连接列表中删除该连接，
- * 并在对应的I/O事件循环中安排一个任务来销毁连接。
- *
- * @param conn 要移除的TCP连接的智能指针。
- */
 void TcpServer::removeConnectionInLoop(const TcpConnectionPtr &conn)
 {
     // 日志记录：包含服务器名、连接名、客户端地址、本地地址等关键信息
@@ -189,13 +157,6 @@ void TcpServer::removeConnectionInLoop(const TcpConnectionPtr &conn)
     });
 }
 
-/**
- * @brief 启动TCP服务器
- *
- * 该函数负责初始化服务器资源，启动底层线程池并开始监听连接。
- * 通过计数器确保同一TcpServer对象仅执行一次启动流程。
- * 无参数和返回值。
- */
 void TcpServer::start()
 {
     // 通过原子操作确保启动逻辑只会执行一次
@@ -209,20 +170,47 @@ void TcpServer::start()
     }
 }
 
-std::shared_ptr<EventLoopThreadPool> TcpServer::getThreadPool() { return EventLoopThreadPool_; }
+std::shared_ptr<EventLoopThreadPool> TcpServer::getThreadPool()
+{
+    return EventLoopThreadPool_;
+}
 
-EventLoop *TcpServer::getLoop() const { return loop_; }
+EventLoop *TcpServer::getLoop() const
+{
+    return loop_;
+}
 
-const std::string &TcpServer::getName() const { return name_; }
+const std::string &TcpServer::getName() const
+{
+    return name_;
+}
 
-const std::string &TcpServer::getIpPort() const { return ipPort_; }
+const std::string &TcpServer::getIpPort() const
+{
+    return ipPort_;
+}
 
-void TcpServer::setWriteCompleteCallback(WriteCompleteCallback cb) { writeCompleteCallback_ = std::move(cb); }
+void TcpServer::setWriteCompleteCallback(WriteCompleteCallback cb)
+{
+    writeCompleteCallback_ = std::move(cb);
+}
 
-void TcpServer::setMessageCallback(MessageCallback cb) { messageCallback_ = std::move(cb); }
+void TcpServer::setMessageCallback(MessageCallback cb)
+{
+    messageCallback_ = std::move(cb);
+}
 
-void TcpServer::setConnectionCallback(ConnectionCallback cb) { connectionCallback_ = std::move(cb); }
+void TcpServer::setConnectionCallback(ConnectionCallback cb)
+{
+    connectionCallback_ = std::move(cb);
+}
 
-void TcpServer::setThreadInitCallback(TcpServer::ThreadInitCallback cb) { threadInitCallback_ = std::move(cb); }
+void TcpServer::setThreadInitCallback(TcpServer::ThreadInitCallback cb)
+{
+    threadInitCallback_ = std::move(cb);
+}
 
-void TcpServer::setThreadNum(int numThreads) { EventLoopThreadPool_->setNumThread(numThreads); }
+void TcpServer::setThreadNum(int numThreads)
+{
+    EventLoopThreadPool_->setNumThread(numThreads);
+}

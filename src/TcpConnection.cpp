@@ -15,21 +15,6 @@ static EventLoop *CheckLoopNotNull(EventLoop *loop)
     return loop;
 }
 
-/**
- * @brief TcpConnection构造函数 - 创建TCP连接对象并初始化核心组件
- *
- * @param loop 所属EventLoop事件循环对象指针(不可为空)
- * @param name 连接名称标识符
- * @param sockfd 已建立的socket文件描述符
- * @param localAddr 本地网络地址信息
- * @param peerAddr 对端网络地址信息
- *
- * 初始化流程：
- * 1. 绑定事件循环并验证有效性
- * 2. 初始化socket和channel
- * 3. 配置默认高水位阈值（64MB）
- * 4. 注册Channel的四大事件回调
- */
 TcpConnection::TcpConnection(EventLoop *loop,
                              std::string name,
                              int sockfd,
@@ -63,14 +48,6 @@ TcpConnection::~TcpConnection()
     LOG_INFO("TcpConnection::dtor[%s] at fd=%d state=%d", name_.c_str(), channel_->getFd(), static_cast<int>(state_));
 }
 
-/**
- * @brief 发送数据到TCP连接
- *
- * 该函数用于将指定的数据发送到当前TCP连接。如果连接状态为已连接（kConnected），
- * 则通过事件循环（loop_）在事件循环线程中调用sendInLoop函数来实际发送数据。
- *
- * @param buf 要发送的数据，类型为std::string，包含待发送的数据内容。
- */
 void TcpConnection::send(const std::string &buf)
 {
     // 检查当前连接状态是否为已连接
@@ -84,26 +61,6 @@ void TcpConnection::send(const std::string &buf)
     }
 }
 
-/**
- * @brief 在事件循环线程中执行实际数据发送（核心发送逻辑）
- *
- * 该函数执行实际的发送操作，处理以下情况：
- * - 直接写入socket的可能性
- * - 部分写入时的缓冲区管理
- * - 错误处理与连接状态管理
- * - 高水位回调触发
- *
- * @param data 待发送数据的起始地址
- * @param len 待发送数据的长度
- *
- * 执行流程：
- * 1. 连接状态验证：若已断开则中止发送
- * 2. 直接发送尝试：当满足条件时尝试直接写入socket
- * 3. 错误处理：处理EWOULDBLOCK及其他致命错误
- * 4. 缓冲区管理：将未发送数据存入outputBuffer_
- * 5. 事件注册：当需要继续发送时启用EPOLLOUT事件监听
- * 6. 高水位控制：当缓冲区超过阈值时触发流量控制回调
- */
 void TcpConnection::sendInLoop(const void *data, size_t len)
 {
     ssize_t nwrote = 0;     // 实际写入socket的字节数
@@ -183,18 +140,6 @@ void TcpConnection::sendInLoop(const void *data, size_t len)
     }
 }
 
-/**
- * @brief 关闭TCP连接
- *
- * 功能说明：
- * - 当连接处于已连接状态时，启动优雅关闭流程：
- *   1. 将连接状态置为断开中(kDisconnecting)
- *   2. 通过事件循环异步执行底层关闭操作
- *
- * 注意：
- * - 必须通过事件循环线程执行以保证线程安全
- * - 实际关闭操作由shutdownInLoop()在事件循环线程完成
- */
 void TcpConnection::shutdown()
 {
     if (state_ == kConnected)
@@ -207,19 +152,6 @@ void TcpConnection::shutdown()
     }
 }
 
-/**
- * @brief 在事件循环中安全关闭TCP连接的写端
- *
- * 该函数处理TCP连接写端关闭逻辑，确保在事件循环中无数据发送时才执行关闭。
- * 主要流程：
- * 1. 检查输出缓冲区是否正在发送数据（通过channel_的写状态判断）；
- * 2. 若没有数据在发送，立即关闭socket的SHUT_WR半关闭，停止写入操作；
- * 3. 关闭写端会触发EPOLLHUP事件，进而通过channel_的closeCallback回调
- *    通知上层连接关闭事件，该回调最终指向TcpConnection::handleClose，
- *    使得用户自定义的连接关闭逻辑能被正确执行。
- *
- * @note 必须在IO事件循环线程中调用，避免多线程竞争
- */
 void TcpConnection::shutdownInLoop()
 {
     // 关键条件判断：仅当输出通道无待发送数据时才能立即关闭写端
@@ -232,15 +164,6 @@ void TcpConnection::shutdownInLoop()
     }
 }
 
-/**
- * @brief 处理TCP连接建立后的逻辑。
- *
- * 该函数在TCP连接成功建立后被调用，主要完成以下任务：
- * 1. 将连接状态设置为已连接（kConnected）。
- * 2. 将当前连接对象与channel_绑定，确保在channel_事件回调时能够访问到当前连接对象。
- * 3. 启用channel_的读事件监听，以便接收来自对端的数据。
- * 4. 调用用户注册的连接回调函数，通知上层应用连接已建立。
- */
 void TcpConnection::connectEstablished()
 {
     // 将连接状态设置为已连接
@@ -257,14 +180,6 @@ void TcpConnection::connectEstablished()
     connectionCallback_(shared_from_this());
 }
 
-/**
- * @brief TcpConnection::connectDestroyed
- *
- * 该函数用于处理TCP连接销毁时的逻辑。主要功能包括：
- * 1. 如果当前连接状态为已连接（kConnected），则将其状态设置为断开连接（kDisconnected），
- *    并禁用与该连接相关的所有事件，最后调用连接回调函数。
- * 2. 无论连接状态如何，都会将该连接的channel从poller中移除。
- */
 void TcpConnection::connectDestroyed()
 {
     // 如果当前连接状态为已连接，则执行以下操作
@@ -284,14 +199,6 @@ void TcpConnection::connectDestroyed()
     channel_->remove();
 }
 
-/**
- * @brief 处理TCP连接上的读事件
- *
- * 当有数据到达时，从socket中读取数据到输入缓冲区，并根据读取结果
- * 进行相应处理：调用消息回调、处理关闭或错误情况
- *
- * @param receiveTime 数据接收的时间戳，用于传递给上层回调
- */
 void TcpConnection::handleRead(Timestamp receiveTime)
 {
     int savedErrno = 0;
@@ -314,16 +221,6 @@ void TcpConnection::handleRead(Timestamp receiveTime)
     }
 }
 
-/**
- * @brief 处理TCP发送缓冲区的数据冲刷与状态机协调
- *
- * 核心设计目标：在非阻塞IO模型下实现可靠的数据传输，平衡吞吐量与资源消耗
- *
- * 关键设计考量：
- * 1. 流量自适应 - 通过动态注册/注销EPOLLOUT事件避免无意义的忙等待（ET模式下持续触发）
- * 2. 优雅关闭保障 - 确保在关闭前完成所有待发送数据的传输
- * 3. 线程模型安全 - 所有IO操作限制在单一IO线程，避免多线程竞态
- */
 void TcpConnection::handleWrite()
 {
     // 检查通道是否注册了写事件
@@ -372,9 +269,6 @@ void TcpConnection::handleWrite()
     }
 }
 
-/**
- * @brief 处理TCP连接的关闭流程
- */
 void TcpConnection::handleClose()
 {
     // 记录连接关闭时的关键信息：文件描述符和当前状态
@@ -399,12 +293,6 @@ void TcpConnection::handleClose()
     closeCallback_(guardThis);
 }
 
-/**
- * @brief 处理TCP连接中的错误信息
- *
- * 该函数用于获取当前套接字上的异步错误状态(SO_ERROR)，通过getsockopt系统调用
- * 获取底层套接字实际发生的错误码，并将错误信息记录到日志中。
- */
 void TcpConnection::handleError()
 {
     int optval;
@@ -426,28 +314,67 @@ void TcpConnection::handleError()
     LOG_ERROR("TcpConnection::handleError name [%s] - SO_ERROR = %d \n", name_.c_str(), err);
 }
 
-EventLoop *TcpConnection::getLoop() const { return loop_; }
+EventLoop *TcpConnection::getLoop() const
+{
+    return loop_;
+}
 
-const std::string &TcpConnection::getName() const { return name_; }
+const std::string &TcpConnection::getName() const
+{
+    return name_;
+}
 
-const InetAddress &TcpConnection::getLocalAddress() const { return localAddr_; }
+const InetAddress &TcpConnection::getLocalAddress() const
+{
+    return localAddr_;
+}
 
-const InetAddress &TcpConnection::getPeerAddress() const { return peerAddr_; }
+const InetAddress &TcpConnection::getPeerAddress() const
+{
+    return peerAddr_;
+}
 
-Buffer *TcpConnection::getInputBuffer() { return &inputBuffer_; }
+Buffer *TcpConnection::getInputBuffer()
+{
+    return &inputBuffer_;
+}
 
-Buffer *TcpConnection::getOutputBuffer() { return &outputBuffer_; }
+Buffer *TcpConnection::getOutputBuffer()
+{
+    return &outputBuffer_;
+}
 
-bool TcpConnection::isConnected() const { return state_ == kConnected; }
+bool TcpConnection::isConnected() const
+{
+    return state_ == kConnected;
+}
 
-bool TcpConnection::isDisconnected() const { return state_ == kDisconnected; }
+bool TcpConnection::isDisconnected() const
+{
+    return state_ == kDisconnected;
+}
 
-void TcpConnection::setState(TcpConnection::StateE state) { state_ = state; }
+void TcpConnection::setState(TcpConnection::StateE state)
+{
+    state_ = state;
+}
 
-void TcpConnection::setConnectionCallback(ConnectionCallback cb) { connectionCallback_ = std::move(cb); }
-void TcpConnection::setMessageCallback(MessageCallback cb) { messageCallback_ = std::move(cb); }
-void TcpConnection::setWriteCompleteCallback(WriteCompleteCallback cb) { writeCompleteCallback_ = std::move(cb); }
-void TcpConnection::setCloseCallback(CloseCallback cb) { closeCallback_ = std::move(cb); }
+void TcpConnection::setConnectionCallback(ConnectionCallback cb)
+{
+    connectionCallback_ = std::move(cb);
+}
+void TcpConnection::setMessageCallback(MessageCallback cb)
+{
+    messageCallback_ = std::move(cb);
+}
+void TcpConnection::setWriteCompleteCallback(WriteCompleteCallback cb)
+{
+    writeCompleteCallback_ = std::move(cb);
+}
+void TcpConnection::setCloseCallback(CloseCallback cb)
+{
+    closeCallback_ = std::move(cb);
+}
 void TcpConnection::setHighWaterMarkCallback(HighWaterMarkCallback cb, size_t highWaterMark)
 {
     highWaterMarkCallback_ = std::move(cb);

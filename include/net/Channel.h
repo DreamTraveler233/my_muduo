@@ -12,82 +12,178 @@ namespace net
     class EventLoop;
 
     /**
-     * 封装单个 fd 的事件管理，负责：
-     * 1、注册/更新/移除事件监听（通过 EventLoop）
-     * 2、定义事件回调（如读、写、关闭）
-     * 3、处理事件并调用用户设置的回调函数
+     * @brief 封装单个文件描述符（fd）的事件管理。
+     *
+     * 该类负责：
+     * 1. 注册/更新/移除事件监听（通过 `EventLoop`）。
+     * 2. 定义事件回调（如读、写、关闭）。
+     * 3. 处理事件并调用用户设置的回调函数。
      */
     class Channel : NonCopyable
     {
     public:
-        using EventCallback = std::function<void()>;
-        using ReadEventCallback = std::function<void(Timestamp)>;
+        using EventCallback = std::function<void()>;             //!< 事件回调函数类型
+        using ReadEventCallback = std::function<void(Timestamp)>;//!< 读事件回调函数类型（带时间戳）
 
+        /**
+         * @brief 构造函数。
+         * @param loop 所属的 [EventLoop]。
+         * @param fd 绑定的文件描述符。
+         */
         Channel(EventLoop *loop, int fd);
+
+        /// 析构函数。
         ~Channel();
 
-        // 基础信息获取
-        [[nodiscard]] int getFd() const;    // 返回绑定的文件描述符
-        [[nodiscard]] int getEvents() const;// 返回当前监听的事件类型
-        void setRevents(uint32_t revt);     // 设置 Poller 返回的事件类型
+        /**
+         * @brief 获取绑定的文件描述符。
+         * @return 绑定的文件描述符。
+         */
+        [[nodiscard]] int getFd() const;
 
-        // 事件监听控制
-        void enableReading(); // 启用读事件监听（EPOLLIN | EPOLLPRI）
-        void disableReading();// 禁用读事件监听
-        void enableWriting(); // 启用写事件监听（EPOLLOUT）
-        void disableWriting();// 禁用写事件监听
-        void disableAll();    // 禁用所有事件监听
+        /**
+         * @brief 获取当前监听的事件类型。
+         * @return 当前监听的事件类型。
+         */
+        [[nodiscard]] int getEvents() const;
 
-        // 事件状态判断
-        [[nodiscard]] bool isNoneEvent() const;// 是否未监听任何事件
-        [[nodiscard]] bool isReading() const;  // 是否正在监听读事件
-        [[nodiscard]] bool isWriting() const;  // 是否正在监听写事件
+        /**
+         * @brief 设置 Poller 返回的事件类型。
+         * @param revt Poller 返回的事件类型。
+         */
+        void setRevents(uint32_t revt);
 
-        // Poller 状态管理
-        [[nodiscard]] int getIndex() const;// 返回在 Poller 中的状态索引（-1 表示未注册）
-        void setIndex(int index);          // 设置 Poller 中的状态索引
+        /**
+         * @brief 启用读事件监听（`EPOLLIN | EPOLLPRI`）。
+         */
+        void enableReading();
 
-        [[nodiscard]] EventLoop *ownerLoop() const;// 返回所属的 EventLoop
-        void remove();                             // 从 EventLoop 中移除当前 Channel
+        /**
+         * @brief 禁用读事件监听。
+         */
+        void disableReading();
 
-        // 事件处理入口
+        /**
+         * @brief 启用写事件监听（`EPOLLOUT`）。
+         */
+        void enableWriting();
+
+        /**
+         * @brief 禁用写事件监听。
+         */
+        void disableWriting();
+
+        /**
+         * @brief 禁用所有事件监听。
+         */
+        void disableAll();
+
+        /**
+         * @brief 判断是否未监听任何事件。
+         * @return 如果未监听任何事件，返回 `true`；否则返回 `false`。
+         */
+        [[nodiscard]] bool isNoneEvent() const;
+
+        /**
+         * @brief 判断是否正在监听读事件。
+         * @return 如果正在监听读事件，返回 `true`；否则返回 `false`。
+         */
+        [[nodiscard]] bool isReading() const;
+
+        /**
+         * @brief 判断是否正在监听写事件。
+         * @return 如果正在监听写事件，返回 `true`；否则返回 `false`。
+         */
+        [[nodiscard]] bool isWriting() const;
+
+        /**
+         * @brief 获取在 Poller 中的状态索引。
+         * @return 在 Poller 中的状态索引（-1 表示未注册）。
+         */
+        [[nodiscard]] int getIndex() const;
+
+        /**
+         * @brief 设置 Poller 中的状态索引。
+         * @param index Poller 中的状态索引。
+         */
+        void setIndex(int index);
+
+        /**
+         * @brief 获取所属的 [EventLoop]。
+         * @return 所属的 [EventLoop]。
+         */
+        [[nodiscard]] EventLoop *ownerLoop() const;
+
+        /**
+         * @brief 从 [EventLoop] 中移除当前 [Channel]。
+         */
+        void remove();
+
+        /**
+         * @brief 事件处理入口。
+         * @param receiveTime 事件触发的时间戳。
+         */
         void handleEvent(Timestamp receiveTime);
 
-        // 回调函数设置
-        void setReadCallback(ReadEventCallback cb);// 设置读事件回调（带时间戳）
-        void setWriteCallback(EventCallback cb);   // 设置写事件回调
-        void setCloseCallback(EventCallback cb);   // 设置连接关闭回调
-        void setErrorCallback(EventCallback cb);   // 设置错误处理回调
+        /**
+         * @brief 设置读事件回调（带时间戳）。
+         * @param cb 读事件回调函数。
+         */
+        void setReadCallback(ReadEventCallback cb);
 
-        // 资源绑定：防止 Channel 被销毁时回调仍在执行
+        /**
+         * @brief 设置写事件回调。
+         * @param cb 写事件回调函数。
+         */
+        void setWriteCallback(EventCallback cb);
+
+        /**
+         * @brief 设置连接关闭回调。
+         * @param cb 连接关闭回调函数。
+         */
+        void setCloseCallback(EventCallback cb);
+
+        /**
+         * @brief 设置错误处理回调。
+         * @param cb 错误处理回调函数。
+         */
+        void setErrorCallback(EventCallback cb);
+
+        /**
+         * @brief 绑定资源，防止 [Channel] 被销毁时回调仍在执行。
+         * @param obj 绑定的共享资源（如 [TcpConnection]）。
+         */
         void tie(const std::shared_ptr<void> &obj);
 
     private:
-        void update();// 通知 EventLoop 更新当前 Channel 的事件监听
+        /**
+         * @brief 通知 [EventLoop] 更新当前 [Channel] 的事件监听。
+         */
+        void update();
 
-        // 内部事件处理（带生命周期保护）
+        /**
+         * @brief 内部事件处理（带生命周期保护）。
+         * @param receiveTime 事件触发的时间戳。
+         */
         void handleEventWithGuard(Timestamp receiveTime);
 
-        // 静态常量：事件类型定义
-        static const int kNoneEvent; // 无事件（0）
-        static const int kReadEvent; // 读事件（EPOLLIN | EPOLLPRI）
-        static const int kWriteEvent;// 写事件（EPOLLOUT）
+        static const int kNoneEvent; //!< 无事件（0）
+        static const int kReadEvent; //!< 读事件（`EPOLLIN | EPOLLPRI`）
+        static const int kWriteEvent;//!< 写事件（`EPOLLOUT`）
 
-        EventLoop *loop_; // 所属的 EventLoop，用于事件循环操作
-        const int fd_;    // 绑定的文件描述符（如 socket）
-        int events_;      // 当前监听的事件掩码（由用户设置）
-        uint32_t revents_;// Poller 返回的就绪事件掩码
-        int index_;       // 在 Poller 中的状态索引（-1: 未注册，1: 已注册，2: 已删除）
+        EventLoop *loop_; //!< 所属的 [EventLoop]，用于事件循环操作
+        const int fd_;    //!< 绑定的文件描述符（如 socket）
+        int events_;      //!< 当前监听的事件掩码（由用户设置）
+        uint32_t revents_;//!< Poller 返回的就绪事件掩码
+        int index_;       //!< 在 Poller 中的状态索引（-1: 未注册，1: 已注册，2: 已删除）
 
-        // 生命周期管理：通过弱引用绑定防止回调时资源失效
-        std::weak_ptr<void> tie_;// 绑定的共享资源（如 TcpConnection）
-        bool tied_;              // 是否已绑定资源
+        std::weak_ptr<void> tie_;//!< 绑定的共享资源（如 [TcpConnection]）
+        bool tied_;              //!< 是否已绑定资源
 
-        // 回调函数
-        ReadEventCallback readCallback_;// 读事件回调（参数为事件触发时间）
-        EventCallback writeCallback_;   // 写事件回调
-        EventCallback closeCallback_;   // 连接关闭回调
-        EventCallback errorCallback_;   // 错误处理回调
+        ReadEventCallback readCallback_;//!< 读事件回调（参数为事件触发时间）
+        EventCallback writeCallback_;   //!< 写事件回调
+        EventCallback closeCallback_;   //!< 连接关闭回调
+        EventCallback errorCallback_;   //!< 错误处理回调
     };
 }// namespace net
 

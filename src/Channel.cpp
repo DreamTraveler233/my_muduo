@@ -24,51 +24,24 @@ Channel::~Channel()
     remove();// 自动清理
 }
 
-// 当一个TcpConnection新连接创建的时候，会调用TcpConnection::connectEstablished()，
-// 然后通过channel_->tie(shared_from_this())，将weak_ptr绑定该TcpConnection连接
 void Channel::tie(const std::shared_ptr<void> &obj)
 {
     tie_ = obj;  // 绑定 weak_ptr
     tied_ = true;// 标记已绑定
 }
 
-/**
- * @brief 更新当前Channel的事件注册状态
- *
- * 该函数将当前 Channel 的事件监听状态同步到 EventLoop 的 Poller 中
- * 当 Channel 监听的事件类型（如可读、可写）发生变化时，
- * 必须调用此函数以更新 Poller 的监听设置
- */
 void Channel::update()
 {
     // 通过 EventLoop 调用 Poller 的更新接口
     loop_->updateChannel(this);
 }
 
-/**
- * @brief 从所属EventLoop中移除当前Channel对象
- *
- * 该函数用于从 EventLoop 的 Poller 中注销当前 Channel 的事件监听。
- * 通常在 Channel 销毁或不再需要监听事件时调用，以释放资源
- *
- * @note 本函数应在Channel所属的EventLoop线程中调用，保证线程安全。
- * 函数执行后该Channel对象将不再接收任何事件通知，但不会销毁对象本身。
- */
 void Channel::remove()
 {
     // 在Channel所属的EventLoop中，删除当前Channel
     loop_->removeChannel(this);
 }
 
-/**
- * @brief 处理事件（带生命周期保护）
- * @param receiveTime 事件触发的时间戳（通常由 Poller 提供）
- * @details 若绑定了共享资源（tie_），则先尝试提升为强引用，确保处理期间资源有效。
- *
- * 当连接建立时，会调用TcpConnection::connectEstablished()，
- * 会将TcpConnection通过channel_->tie()方法，
- * 使TcpConnection被weak_ptr管理。
- */
 void Channel::handleEvent(Timestamp receiveTime)
 {
     if (tied_)// 检查是否绑定了共享资源（TcpConnection）
@@ -87,12 +60,6 @@ void Channel::handleEvent(Timestamp receiveTime)
     }
 }
 
-/**
- * @brief 实际处理事件的内部函数
- * @param receiveTime 事件触发的时间戳
- * @details 按优先级处理事件：错误 > 挂起 > 读 > 写。
- * 每个事件分支独立处理，确保所有触发的事件都能被响应。
- */
 void Channel::handleEventWithGuard(Timestamp receiveTime)
 {
     LOG_INFO("channel fd=%d handleEvent returnEvent:%d\n", getFd(), revents_);
@@ -156,19 +123,58 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
         }
     }
 }
-void Channel::setReadCallback(Channel::ReadEventCallback cb) { readCallback_ = std::move(cb); }
-void Channel::setWriteCallback(Channel::EventCallback cb) { writeCallback_ = std::move(cb); }
-void Channel::setCloseCallback(Channel::EventCallback cb) { closeCallback_ = std::move(cb); }
-void Channel::setErrorCallback(Channel::EventCallback cb) { errorCallback_ = std::move(cb); }
-int Channel::getFd() const { return fd_; }
-int Channel::getEvents() const { return events_; }
-void Channel::setRevents(uint32_t revt) { revents_ = revt; }
-bool Channel::isNoneEvent() const { return events_ == kNoneEvent; }
-bool Channel::isReading() const { return events_ & kReadEvent; }
-bool Channel::isWriting() const { return events_ & kWriteEvent; }
-int Channel::getIndex() const { return index_; }
-void Channel::setIndex(int index) { index_ = index; }
-EventLoop *Channel::ownerLoop() const { return loop_; }
+void Channel::setReadCallback(Channel::ReadEventCallback cb)
+{
+    readCallback_ = std::move(cb);
+}
+void Channel::setWriteCallback(Channel::EventCallback cb)
+{
+    writeCallback_ = std::move(cb);
+}
+void Channel::setCloseCallback(Channel::EventCallback cb)
+{
+    closeCallback_ = std::move(cb);
+}
+void Channel::setErrorCallback(Channel::EventCallback cb)
+{
+    errorCallback_ = std::move(cb);
+}
+int Channel::getFd() const
+{
+    return fd_;
+}
+int Channel::getEvents() const
+{
+    return events_;
+}
+void Channel::setRevents(uint32_t revt)
+{
+    revents_ = revt;
+}
+bool Channel::isNoneEvent() const
+{
+    return events_ == kNoneEvent;
+}
+bool Channel::isReading() const
+{
+    return events_ & kReadEvent;
+}
+bool Channel::isWriting() const
+{
+    return events_ & kWriteEvent;
+}
+int Channel::getIndex() const
+{
+    return index_;
+}
+void Channel::setIndex(int index)
+{
+    index_ = index;
+}
+EventLoop *Channel::ownerLoop() const
+{
+    return loop_;
+}
 void Channel::enableReading()
 {
     events_ |= kReadEvent;

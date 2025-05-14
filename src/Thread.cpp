@@ -26,19 +26,6 @@ Thread::~Thread()
     }
 }
 
-/**
- * @brief 启动线程并执行绑定任务函数
- *
- * 功能说明：
- * 1. 初始化线程状态标志
- * 2. 使用信号量同步确保线程ID正确获取
- * 3. 创建实际执行线程并分离控制权
- *
- * 注意：
- * - 使用信号量确保子线程完成tid设置后才继续主线程
- * - func_将在新线程上下文中执行
- * - 存在潜在风险：局部信号量sem可能在线程运行时已超出作用域（需确保线程生命周期管理）
- */
 void Thread::start()
 {
     if (started_)
@@ -74,16 +61,6 @@ void Thread::join()
     thread_->join();
 }
 
-/**
- * @brief 设置线程的默认名称
- *
- * 当线程对象没有指定名称时，自动生成默认名称。命名规则为"Thread"前缀
- * 加上递增的线程编号。该函数会修改成员变量name_和静态计数器numCreated_
- *
- * @note 该函数没有参数和返回值，通过修改类成员变量实现功能：
- *   - numCreated_ 是静态成员变量，记录已创建线程总数
- *   - name_ 是成员变量，存储线程名称
- */
 void Thread::setDefaultName()
 {
     // 原子递增线程计数器并获取当前序号
@@ -99,7 +76,19 @@ void Thread::setDefaultName()
         threadName_ = buf;
     }
 }
-bool Thread::started() const { return started_; }
-pid_t Thread::getTid() const { return tid_; }
-const std::string &Thread::getName() const { return threadName_; }
-int Thread::getNumCreated() { return threadNum_; }
+bool Thread::started() const
+{
+    return started_;
+}
+pid_t Thread::getTid() const
+{
+    return tid_;
+}
+const std::string &Thread::getName() const
+{
+    return threadName_;
+}
+int Thread::getNumCreated()
+{
+    return threadNum_;
+}

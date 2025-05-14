@@ -38,14 +38,6 @@ int createEventfd()
     return evtfd;
 }
 
-/**
- * @brief EventLoop 构造函数 - 创建事件循环对象
- *
- * 核心功能：
- * 1. 初始化事件循环核心组件
- * 2. 强制单线程单实例约束
- * 3. 构建IO多路复用和线程唤醒机制
- */
 EventLoop::EventLoop()
     : looping_(false),
       quit_(false),
@@ -88,13 +80,6 @@ EventLoop::~EventLoop()
     t_loopInThisThread = nullptr;
 }
 
-/**
- * @brief EventLoop的主循环函数，负责事件循环的处理。
- *
- * 该函数启动事件循环，持续监听和处理事件，直到收到退出信号。
- * 在每次循环中，它会调用poll函数获取活跃的事件通道，并处理这些通道的事件。
- * 同时，它还会执行待处理的函数对象。
- */
 void EventLoop::loop()
 {
     // 标记事件循环开始
@@ -129,23 +114,6 @@ void EventLoop::loop()
     looping_ = false;
 }
 
-/**
- * @brief 退出事件循环
- *
- * 该函数用于设置退出标志 `quit_` 为 true，表示事件循环需要退出。
- * 如果当前线程不是事件循环所在的线程，则调用 `wakeup()` 函数唤醒事件循环线程。
- *
- * 场景一：事件循环线程自身调用 quit()
- *      此时，线程正在运行事件循环（即在 loop() 的 while (!quit_) 循环中）。
- *      设置 quit_ = true 后，事件循环会在当前循环迭代结束后自然退出，无需额外唤醒。
- *      示例：事件循环线程处理到某个条件（如接收到关闭信号），主动调用 quit() 退出。
- * 场景二：其他线程调用 quit()
- *      例如，主线程需要关闭工作线程的事件循环。
- *      事件循环线程可能正阻塞在 poll() 中等待I/O事件，无法立即检测到 quit_ 的变化。
- *      示例：主线程通过 std::thread::join() 等待工作线程退出前，调用工作线程的 EventLoop::quit()。
- *
- * @note 该函数不会立即停止事件循环，而是通过设置标志位和唤醒线程来通知事件循环退出。
- */
 void EventLoop::quit()
 {
     // 设置退出标志为 true，表示事件循环需要退出
@@ -158,14 +126,6 @@ void EventLoop::quit()
     }
 }
 
-/**
- * 在事件循环中执行一个任务
- *
- * @param cb 一个 Functor 类型的任务，代表一段可执行的代码
- *
- * 此函数用于将一个任务提交到事件循环线程中执行。如果调用此函数的线程就是事件循环线程，
- * 则直接执行该任务；否则，将任务加入到事件循环的队列中，以供事件循环线程稍后执行。
- */
 void EventLoop::runInLoop(const EventLoop::Functor &cb)
 {
     // 判断当前线程是否为事件循环线程
@@ -199,16 +159,6 @@ void EventLoop::runInLoop(const EventLoop::Functor &cb)
 
  */
 
-/**
- * @brief 将回调函数添加到事件循环的待执行队列中。
- *
- * 该函数用于将回调函数 `cb` 添加到事件循环的待执行队列 `pendingFunctors_` 中。
- * 如果当前线程不是事件循环所在的线程，或者正在执行待执行队列中的回调函数，
- * 则调用 `wakeup()` 函数唤醒事件循环线程。
- *
- * @param cb 要添加到待执行队列的回调函数，类型为 `EventLoop::Functor`。
- *            该参数应为可调用对象，通常为函数指针或lambda表达式。
- */
 void EventLoop::queueInLoop(const EventLoop::Functor &cb)
 {
     // 临界区开始：通过互斥锁保护共享资源 pendingFunctors_
@@ -236,10 +186,6 @@ void EventLoop::queueInLoop(const EventLoop::Functor &cb)
     }
 }
 
-/**
- * @brief 跨线程唤醒事件循环
- * 写入操作会触发 wakeupFd_ 的可读事件，强制中断 poll/epoll_wait 的阻塞状态
- */
 void EventLoop::wakeup() const
 {
     uint64_t one = 1;
@@ -253,11 +199,6 @@ void EventLoop::wakeup() const
     }
 }
 
-/**
- * @brief 清空eventfd状态避免重复触发
- * 1. 消费 wakeupFd_ 的计数器值，重置 eventfd 状态，避免持续触发可读事件
- * 2. 作为唤醒事件的实际处理入口，触发后续异步任务队列的执行（doPendingFunctors）
- */
 void EventLoop::handleRead() const
 {
     uint64_t one = 1;
@@ -271,14 +212,6 @@ void EventLoop::handleRead() const
     }
 }
 
-/**
- * @brief 批量执行异步任务队列的核心调度逻辑
- *
- * - 使用swap原子化获取任务队列，最小化临界区提升并发性能
- * - 分离任务获取与执行阶段，避免执行时持有锁引发死锁风险
- * - 标志位管理确保任务执行期间新任务进入下一轮处理周期
- * - 允许任务嵌套提交，维持事件循环的级联响应能力
- */
 void EventLoop::doPendingFunctors()
 {
     std::vector<Functor> functors;
@@ -299,6 +232,15 @@ void EventLoop::doPendingFunctors()
     // 必须最后更新状态标志，保证可见性（假设存在内存屏障机制）
     callingPendingFunctors_ = false;
 }
-void EventLoop::updateChannel(Channel *channel) { poller_->updateChannel(channel); }
-void EventLoop::removeChannel(Channel *channel) { poller_->removeChannel(channel); }
-bool EventLoop::isInLoopThread() const { return threadId_ == CurrentThread::tid(); }
+void EventLoop::updateChannel(Channel *channel)
+{
+    poller_->updateChannel(channel);
+}
+void EventLoop::removeChannel(Channel *channel)
+{
+    poller_->removeChannel(channel);
+}
+bool EventLoop::isInLoopThread() const
+{
+    return threadId_ == CurrentThread::tid();
+}

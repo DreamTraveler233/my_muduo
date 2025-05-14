@@ -7,22 +7,17 @@
 
 using namespace net;
 
-// 获取日志的唯一单例
-/*利用局部静态变量的线程安全特性（C++11 保证）*/
 Logger &Logger::getInstance()
 {
     static Logger logger;
     return logger;
 }
 
-// 设置日志级别
 void Logger::setLogLevel(int level)
 {
     level_ = level;
 }
 
-// 写日志
-/*日志输出格式：[级别信息] time : msg*/
 void Logger::log(const std::string &msg) const
 {
     switch (level_)

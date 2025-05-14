@@ -13,27 +13,12 @@ Timestamp::Timestamp(int64_t microSecondsSinceEpoch)
     : microSecondsSinceEpoch_(microSecondsSinceEpoch)
 {}
 
-/**
- * @brief 获取当前时间戳
- *
- * 该函数用于获取当前系统时间，并将其封装为Timestamp对象返回。
- *
- * @return Timestamp 返回一个表示当前时间的Timestamp对象
- */
 Timestamp Timestamp::now()
 {
     // 使用time函数获取当前时间，并将其传递给Timestamp构造函数
     return Timestamp(time(nullptr));
 }
 
-/**
- * @brief 将时间戳转换为格式化的字符串表示。
- *
- * 该函数将类成员变量 `microSecondsSinceEpoch_` 表示的时间戳转换为本地时间，
- * 并将其格式化为 "YYYY/MM/DD HH:MM:SS" 的字符串形式。
- *
- * @return std::string 返回格式化后的时间字符串。
- */
 std::string Timestamp::toString()
 {
     char buf[128] = {};// 用于存储格式化后的时间字符串的缓冲区
@@ -52,5 +37,3 @@ std::string Timestamp::toString()
 
     return buf;// 返回格式化后的时间字符串
 }
-
-#include <iostream>

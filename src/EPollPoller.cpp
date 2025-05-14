@@ -25,19 +25,6 @@ EPollPoller::EPollPoller(EventLoop *loop)
 
 EPollPoller::~EPollPoller() { close(epollFd_); }
 
-/**
- * @brief 执行一次 epoll_wait 调用，获取就绪事件并填充活跃通道列表
- *
- * @param timeoutMs epoll_wait 超时时间（毫秒）
- * @param activeChannels 输出参数，用于存储就绪事件对应的 Channel 列表
- * @return Timestamp 返回调用完成时的时间戳（通常用于记录事件触发时间）
- *
- * 功能说明:
- * - 通过 epoll_wait 监听所有注册的文件描述符事件
- * - 处理三种结果情况：有事件就绪/超时/错误
- * - 动态调整事件存储数组大小以提升性能
- * - 记录关键节点日志用于调试和状态监控
- */
 Timestamp EPollPoller::poll(int timeoutMs, Poller::ChannelList *activeChannels)
 {
     // 打印当前管理的文件描述符总数（监控负载情况）
@@ -90,25 +77,6 @@ Timestamp EPollPoller::poll(int timeoutMs, Poller::ChannelList *activeChannels)
     return Timestamp::now();
 }
 
-/**
- * @brief 将epoll监听到的就绪事件转换为活跃Channel列表
- *
- * @param numEvents  从poll()中epoll_wait获取的就绪事件总数
- * @param activeChannels 输出参数，存储待处理的活跃Channel（由EventLoop消费）
- *
- * @note 与poll()的协作流程：
- * 1. 事件收集阶段 - poll()通过epoll_wait获取内核事件到events_数组
- * 2. 事件转换阶段 - 本函数遍历events_数组前numEvents项（关键数据流动）
- * 3. 事件消费阶段 - activeChannels传递给EventLoop执行回调
- *
- * 流程可视化：
- * poll()收集事件 → fillActiveChannels转换 → EventLoop消费
- *
- * 设计要点：
- * - 直接通过epoll_event.data.ptr获取Channel（零拷贝优化，避免哈希查找）
- * - 必须紧随poll()调用后执行，保证events_数组数据有效性
- * - 时间复杂度严格为O(numEvents)，与注册的fd总数无关
- */
 void EPollPoller::fillActiveChannels(int numEvents, Poller::ChannelList *activeChannels) const
 {
     // 遍历epoll_wait返回的所有就绪事件（事件数据由poll()阶段收集）
@@ -128,21 +96,6 @@ void EPollPoller::fillActiveChannels(int numEvents, Poller::ChannelList *activeC
     }
 }
 
-/**
- * @brief 更新 Channel 的事件监控状态
- *
- * @param channel 目标 Channel 对象，需包含有效 fd 和事件信息
- *
- * 状态转换逻辑：
- * [New/Deleted] -> 添加事件监控 (EPOLL_CTL_ADD)
- * [Added]       -> 无事件时移除监控 (EPOLL_CTL_DEL)
- *                -> 有事件时更新监控 (EPOLL_CTL_MOD)
- *
- * 关键保证：
- * - 维护 fd 与 Channel 的映射关系
- * - 自动处理 epoll 事件集的增/删/改
- * - 防御重复添加和无效操作
- */
 void EPollPoller::updateChannel(Channel *channel)
 {
     const int index = channel->getIndex();
@@ -188,19 +141,6 @@ void EPollPoller::updateChannel(Channel *channel)
     }
 }
 
-/**
- * @brief 从 epoll 实例和 Poller 中移除指定 Channel
- *
- * @param channel 要移除的 Channel 对象指针，必须非空且有效
- *
- * 功能说明:
- * - 将 Channel 从 channels_ 映射表中移除，解除 fd 与 Channel 的关联
- * - 根据 Channel 当前状态决定是否需要执行 epoll_ctl(DEL) 操作
- * - 重置 Channel 的状态为 kNew，使其可被重新添加到其他 Poller 或复用
- *
- * 关键流程:
- * 1. 清理映射关系 -> 2. 执行系统调用 -> 3. 重置状态
- */
 void EPollPoller::removeChannel(Channel *channel)
 {
     LOG_INFO("func=%s => fd=%d \n", __FUNCTION__, channel->getFd());
@@ -223,20 +163,6 @@ void EPollPoller::removeChannel(Channel *channel)
     channel->setIndex(kNew);// 现在该 Channel 可被重新添加到其他 Poller
 }
 
-/**
- * @brief 执行 epoll_ctl 系统调用的核心封装函数
- *
- * @param operation 操作类型: EPOLL_CTL_ADD/EPOLL_CTL_MOD/EPOLL_CTL_DEL
- * @param channel 关联的 Channel 对象，包含要操作的 fd 和事件
- *
- * 功能说明:
- * - 构造 epoll_event 结构体并执行指定的 epoll_ctl 操作
- * - 统一处理系统调用错误，区分 DEL 和其他操作的错误级别
- * - 维护 epoll 实例与文件描述符事件监听的同步
- *
- * 关键流程:
- * 1. 构造事件结构 -> 2. 执行系统调用 -> 3. 错误处理
- */
 void EPollPoller::update(int operation, Channel *channel) const
 {
     epoll_event event{};

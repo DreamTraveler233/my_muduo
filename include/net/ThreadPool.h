@@ -2,38 +2,51 @@
 #define THREADPOOL_THREAD_POOL_H
 
 #include "SysHeadFile.h"
+#include "NonCopyable.h"
 
 namespace thp
 {
-    const size_t DEFAULT_TASK_QUE_MAX_SIZE = 200;  // 任务队列最大任务数量
-    const size_t DEFAULT_THREAD_MAX_SIZE = 2048;   // 线程池最大线程数量
-    const size_t DEFAULT_THREAD_MAX_IDLE_TIME = 60;// 线程最大空闲时间
+    const size_t DEFAULT_TASK_QUE_MAX_SIZE = 200;  //!< 任务队列最大任务数量
+    const size_t DEFAULT_THREAD_MAX_SIZE = 2048;   //!< 线程池最大线程数量
+    const size_t DEFAULT_THREAD_MAX_IDLE_TIME = 60;//!< 线程最大空闲时间
 
-    // 线程池支持的模式
+    /**
+     * @enum PoolMode
+     * @brief 线程池支持的模式
+     */
     enum class PoolMode
     {
-        MODE_FIXED, // 固定数量的线程
-        MODE_CACHED,// 线程数量可动态增长
+        MODE_FIXED, //!< 固定数量的线程
+        MODE_CACHED //!< 线程数量可动态增长
     };
 
-    // 线程类
+
+    /**
+     * @class Thread
+     * @brief 线程类，封装线程的创建和管理
+     */
     class Thread
     {
     public:
-        // 线程函数对象类型
-        using ThreadFunc = std::function<void(size_t)>;
+        using ThreadFunc = std::function<void(size_t)>; //!< 线程函数对象类型
 
-        // 构造函数
+        /**
+         * @brief 构造函数，初始化线程
+         * @param func 线程执行函数
+         */
         inline explicit Thread(ThreadFunc func)
             : threadFunc_(std::move(func)),
               threadId_(generateId_++)
-        {
-        }
+        {}
 
-        // 析构函数
+        /**
+         * @brief 析构函数
+         */
         inline ~Thread() = default;
 
-        // 启动线程
+        /**
+         * @brief 启动线程
+         */
         inline void start()
         {
             // 创建一个线程，执行线程函数
@@ -42,40 +55,41 @@ namespace thp
             thread.detach();
         }
 
-        // 获取线程ID
+        /**
+         * @brief 获取线程ID
+         * @return 返回线程ID
+         */
         [[nodiscard]] inline size_t getThreadId() const
         {
             return threadId_;
         }
 
     private:
-        ThreadFunc threadFunc_;
-        inline static std::atomic_uint generateId_ = 0;
-        size_t threadId_;// 保存线程ID
+        ThreadFunc threadFunc_;                //!< 线程执行函数
+        inline static std::atomic_uint generateId_ = 0; //!< 线程ID生成器
+        size_t threadId_;                      //!< 线程ID
     };
 
     /**
+     * @class ThreadPool
+     * @brief 线程池类，管理线程的创建、任务分配和资源回收
+     *
+     * 使用步骤：
      * 1. 创建线程池对象
-     * ThreadPool pool;
      * 2. 设置线程池模式（可选，默认为固定模式）
-     * pool.setMode(PoolMode::MODE_CACHED);
      * 3. 设置任务队列最大大小（可选，默认为1024）
-     * pool.setTaskQueMaxSize(2048);
      * 4. 设置线程池最大线程数（可选，默认为1024）
-     * pool.setThreadMaxSize(512);
      * 5. 启动线程池，默认线程数为系统支持的并发线程数
-     * pool.start();
      * 6. 提交任务到线程池
-     * auto result = pool.submitTask(Func, Args...);
      * 7. 获取任务执行结果（可选）
-     * int sum = result.get();
      * 8. 线程池会在析构时自动回收所有线程资源
      */
-    // 线程池类
-    class ThreadPool
+    class ThreadPool : net::NonCopyable
     {
     public:
-        // 线程池构造函数
+        /**
+         * @brief 构造函数，初始化线程池
+         */
         inline ThreadPool()
             : initThreadSize_(0),
               currentThreadSize_(0),
@@ -86,10 +100,11 @@ namespace thp
               taskQueMaxSize_(DEFAULT_TASK_QUE_MAX_SIZE),
               poolMode_(PoolMode::MODE_CACHED),
               poolIsRunning_(false)
-        {
-        }
+        {}
 
-        // 线程池析构函数
+        /**
+         * @brief 析构函数，自动回收所有线程资源
+         */
         inline ~ThreadPool()
         {
             poolIsRunning_ = false;
@@ -100,7 +115,10 @@ namespace thp
             exitCond_.wait(lock, [this]() { return threads_.empty(); });
         }
 
-        // 设置线程池工作模式
+        /**
+         * @brief 设置线程池工作模式
+         * @param mode 线程池模式
+         */
         void setMode(PoolMode mode)
         {
             // 如果线程池已经启动，则不予设置
@@ -111,7 +129,10 @@ namespace thp
             poolMode_ = mode;
         }
 
-        // 设置task任务队列上限数量
+        /**
+         * @brief 设置任务队列最大大小
+         * @param size 任务队列最大大小
+         */
         void setTaskQueMaxSize(size_t size)
         {
             // 如果线程池已经启动，则不予设置
@@ -122,6 +143,10 @@ namespace thp
             taskQueMaxSize_ = size;
         }
 
+        /**
+         * @brief 设置线程最大空闲时间
+         * @param size 线程最大空闲时间
+         */
         void setThreadIdleMaxTime(size_t size)
         {
             // 如果线程池已经启动，则不予设置
@@ -131,8 +156,11 @@ namespace thp
             }
             threadMaxIdleTime = size;
         }
-
-        // 设置线程池cached模式下线程上限数量
+        
+        /**
+         * @brief 设置线程池最大线程数
+         * @param size 线程池最大线程数
+         */
         void setThreadMaxSize(size_t size)
         {
             // 如果线程池已经启动，则不予设置
@@ -147,17 +175,13 @@ namespace thp
         }
 
         /**
- * @brief 提交任务到线程池
- *
- * 该函数使用可变参模板编程，允许接受任意任务函数和任意数量的参数。任务会被打包并放入任务队列中，
- * 返回一个std::future对象，用于获取任务的执行结果。
- *
- * @tparam Func 任务函数的类型
- * @tparam Args 任务函数参数的类型
- * @param func 要执行的任务函数
- * @param args 任务函数的参数
- * @return std::future<decltype(func(args...))> 返回一个std::future对象，用于获取任务的执行结果
- */
+         * @brief 提交任务到线程池
+         * @tparam Func 任务函数类型
+         * @tparam Args 任务函数参数类型
+         * @param func 任务函数
+         * @param args 任务函数参数
+         * @return std::future<decltype(func(args...))> 返回一个 std::future 对象，用于获取任务执行结果
+         */
         template<typename Func, typename... Args>
         auto submitTask(Func &&func, Args &&...args) -> std::future<decltype(func(args...))>
         {
@@ -219,13 +243,9 @@ namespace thp
         }
 
         /**
- * @brief 启动线程池，初始化并启动指定数量的线程。
- *
- * 该函数用于启动线程池，初始化线程数量，并启动所有线程。线程池的运行状态会被设置为 true，
- * 表示线程池已启动。线程数量可以通过参数指定，默认值为系统支持的并发线程数。
- *
- * @param initThreadSize 初始线程数量，默认为系统支持的并发线程数。
- */
+         * @brief 启动线程池
+         * @param initThreadSize 初始线程数量，默认为系统支持的并发线程数
+         */
         void start(size_t initThreadSize = std::thread::hardware_concurrency())
         {
             // 若线程池已启动，直接返回
@@ -267,23 +287,12 @@ namespace thp
                 idleThreadSize_++;   // 增加空闲线程计数
             }
         }
-
-        // 禁止拷贝构造和赋值操作
-        ThreadPool(const ThreadPool &) = delete;
-
-        ThreadPool &operator=(const ThreadPool &) = delete;
-
+        
     private:
         /**
- * @brief 线程函数，用于从任务队列中取出任务并执行。
- *
- * @param threadId 当前线程的唯一标识符，用于在线程池中标识该线程。
- *
- * @details 该函数是线程池中每个线程的执行函数。线程会不断从任务队列中取出任务并执行。
- * 如果任务队列为空，线程会根据线程池的运行模式和状态决定是否进入等待状态或回收线程。
- * 在CACHED模式下，线程会在空闲时间超过指定阈值时被回收。
- * 线程在执行任务时会更新空闲线程数量，并在任务完成后更新最后执行任务的时间。
- */
+         * @brief 线程函数，用于从任务队列中取出任务并执行
+         * @param threadId 线程ID
+         */
         void threadFunc(size_t threadId)
         {
             // 记录线程第一次执行任务的时间
@@ -375,7 +384,10 @@ namespace thp
             }
         }
 
-        // 判断线程池运行状态
+        /**
+         * @brief 检查线程池是否正在运行
+         * @return 如果线程池正在运行，返回 true；否则返回 false
+         */
         bool checkRunningState() const
         {
             return poolIsRunning_;
@@ -383,28 +395,28 @@ namespace thp
 
     private:
         /*====================线程相关变量====================*/
-        std::unordered_map<size_t, std::unique_ptr<Thread>> threads_;// 线程列表
-        size_t initThreadSize_;                                      // 初始化线程数量
-        size_t threadMaxSize_;                                       // 线程上限数量
-        size_t threadMaxIdleTime;                                    // 线程最大空闲时间
-        std::atomic_uint idleThreadSize_;                            // 空闲线程
-        std::atomic_uint currentThreadSize_;                         // 当前线程数量
-
+        std::unordered_map<size_t, std::unique_ptr<Thread>> threads_;//!< 线程列表
+        size_t initThreadSize_;                                      //!< 初始化线程数量
+        size_t threadMaxSize_;                                       //!< 线程上限数量
+        size_t threadMaxIdleTime;                                    //!< 线程最大空闲时间
+        std::atomic_uint idleThreadSize_;                            //!< 空闲线程数量
+        std::atomic_uint currentThreadSize_;                         //!< 当前线程数量
+                                                          
         /*====================任务相关变量====================*/
         using Task = std::function<void()>;
-        std::queue<Task> taskQue_;        // 任务队列
-        size_t taskQueMaxSize_;           // 任务队列数量上限
-        std::atomic_uint currentTaskSize_;// 当前任务数量
+        std::queue<Task> taskQue_;        //!< 任务队列
+        size_t taskQueMaxSize_;           //!< 任务队列最大大小
+        std::atomic_uint currentTaskSize_;//!< 当前任务数量
 
         /*====================线程通信相关变量====================*/
-        std::mutex taskQueMtx_;                  // 任务队列互斥锁
-        std::condition_variable taskQueNotFull_; // 任务队列非满条件变量
-        std::condition_variable taskQueNotEmpty_;// 任务队列非空条件变量
-        std::condition_variable exitCond_;       // 线程资源回收条件变量
+        std::mutex taskQueMtx_;                  //!< 任务队列互斥锁
+        std::condition_variable taskQueNotFull_; //!< 任务队列非满条件变量
+        std::condition_variable taskQueNotEmpty_;//!< 任务队列非空条件变量
+        std::condition_variable exitCond_;       //!< 线程资源回收条件变量
 
         /*====================线程池属性相关变量====================*/
-        PoolMode poolMode_;             // 当前线程池的工作模式
-        std::atomic_bool poolIsRunning_;// 线程池启动标志
+        PoolMode poolMode_;             //!< 线程池工作模式
+        std::atomic_bool poolIsRunning_;//!< 线程池是否正在运行
     };
 }// namespace thp
 

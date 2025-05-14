@@ -1,13 +1,5 @@
 #include "../include/net/MenoryPool.h"
 
-/**
- * @brief NgxMemPool 类的构造函数，用于初始化内存池。
- *
- * 该构造函数根据传入的 size 参数分配内存池，并初始化内存池的相关属性。
- * 如果分配的内存大小小于 NGX_MIN_POOL_SIZE，则使用 NGX_MIN_POOL_SIZE 作为分配大小。
- *
- * @param size 请求的内存池大小。如果该值小于 NGX_MIN_POOL_SIZE，则使用 NGX_MIN_POOL_SIZE。
- */
 NgxMemPool::NgxMemPool(size_t size)
 {
     // 分配内存池，确保分配的大小不小于 NGX_MIN_POOL_SIZE
@@ -33,12 +25,7 @@ NgxMemPool::NgxMemPool(size_t size)
     _pool->large = nullptr;
     _pool->cleanup = nullptr;
 }
-/**
- * @brief NgxMemPool类的析构函数，用于释放内存池中的所有资源。
- *
- * 该函数负责清理内存池中的各种资源，包括清理回调函数、大内存块以及内存池本身。
- * 通过遍历内存池中的各个链表，依次释放相关资源，确保内存池的完全释放。
- */
+
 NgxMemPool::~NgxMemPool()
 {
     NgxPool_t *p, *n;   // 用于遍历内存池链表的指针
@@ -75,14 +62,7 @@ NgxMemPool::~NgxMemPool()
     }
 }
 
-/**
- * @brief 重置内存池，释放所有大块内存并重置内存池状态。
- *
- * 该函数用于重置内存池，释放所有通过大块内存分配的内存，并将内存池的状态重置为初始状态。
- * 具体操作包括：
- * 1. 遍历并释放所有大块内存。
- * 2. 重置内存池的指针和状态，使其恢复到初始状态。
- */
+
 void NgxMemPool::resetPool()
 {
     NgxPool_t *p;
@@ -114,16 +94,7 @@ void NgxMemPool::resetPool()
     _pool->large = nullptr;
 }
 
-/**
- * @brief 从内存池中分配指定大小的内存块，并进行内存对齐。
- *
- * 该函数根据请求的内存大小决定是从小块内存池还是大块内存池中分配内存。
- * 如果请求的大小小于或等于内存池中小块内存的最大大小，则从小块内存池中分配；
- * 否则，从大块内存池中分配。
- *
- * @param size 请求分配的内存大小。
- * @return void* 返回指向分配的内存块的指针。如果分配失败，返回NULL。
- */
+
 void *NgxMemPool::palloc(size_t size)
 {
     // 判断请求的内存大小是否小于或等于小块内存的最大大小
@@ -135,16 +106,7 @@ void *NgxMemPool::palloc(size_t size)
     // 从大块内存池中分配内存
     return pallocLarge(size);
 }
-/**
- * @brief 从内存池中分配指定大小的内存块，但不进行内存对齐。
- *
- * 该函数根据请求的内存大小决定是从小块内存池还是大块内存池中分配内存。
- * 如果请求的内存大小小于或等于内存池的最大小块大小，则从小块内存池中分配；
- * 否则，从大块内存池中分配。与 `palloc` 函数不同，`pnalloc` 不会对分配的内存进行对齐操作。
- *
- * @param size 请求分配的内存大小。
- * @return void* 返回指向分配内存的指针。如果分配失败，返回 NULL。
- */
+
 void *NgxMemPool::pnalloc(size_t size)
 {
     // 检查请求的内存大小是否小于或等于内存池的最大小块大小
@@ -156,15 +118,7 @@ void *NgxMemPool::pnalloc(size_t size)
     // 从大块内存池中分配内存
     return pallocLarge(size);
 }
-/**
- * @brief 从内存池中分配指定大小的内存，并将其初始化为零。
- *
- * 该函数首先调用 `palloc` 从内存池中分配指定大小的内存块。如果分配成功，
- * 则使用 `memset` 将分配的内存块初始化为零。
- *
- * @param size 要分配的内存块的大小（以字节为单位）。
- * @return 返回指向分配的内存块的指针。如果分配失败，则返回 NULL。
- */
+
 void *NgxMemPool::pcalloc(size_t size)
 {
     void *p;
@@ -180,17 +134,7 @@ void *NgxMemPool::pcalloc(size_t size)
 
     return p;
 }
-/**
- * @brief 从内存池中分配小块内存
- *
- * 该函数用于从内存池中分配指定大小的内存块。如果内存池的当前节点无法满足需求，
- * 则会尝试从下一个节点分配。如果所有节点都无法满足需求，则调用 pallocBlock 函数
- * 分配一个新的内存块。
- *
- * @param size 需要分配的内存大小
- * @param align 是否需要对内存地址进行对齐
- * @return void* 返回分配的内存地址，如果分配失败则返回 NULL
- */
+
 void *NgxMemPool::pallocSmall(size_t size, bool align)
 {
     u_char *m;
@@ -223,16 +167,7 @@ void *NgxMemPool::pallocSmall(size_t size, bool align)
     // 如果所有节点都无法满足需求，则分配一个新的内存块
     return pallocBlock(size);
 }
-/**
- * @brief 从内存池中分配大块内存
- *
- * 该函数用于从内存池中分配一块较大的内存。首先尝试使用标准库的 `malloc` 函数分配内存，
- * 如果分配成功，则将该内存块添加到内存池的大内存块链表中。如果链表中已有空闲的节点，
- * 则直接使用该节点。如果链表中的节点已满，则分配一个新的节点并将其插入到链表头部。
- *
- * @param size 需要分配的内存大小
- * @return void* 返回分配的内存指针，如果分配失败则返回 `nullptr`
- */
+
 void *NgxMemPool::pallocLarge(size_t size)
 {
     void *p;
@@ -281,15 +216,7 @@ void *NgxMemPool::pallocLarge(size_t size)
 
     return p;
 }
-/**
- * @brief 从内存池中分配一个内存块。
- *
- * 该函数用于在内存池中分配一个指定大小的内存块。如果当前内存池无法满足需求，
- * 则会创建一个新的内存池，并将其链接到现有内存池的链表中。
- *
- * @param size 需要分配的内存块大小。
- * @return 返回指向分配内存块的指针，如果分配失败则返回 nullptr。
- */
+
 void *NgxMemPool::pallocBlock(size_t size)
 {
     u_char *m;
@@ -331,6 +258,7 @@ void *NgxMemPool::pallocBlock(size_t size)
 
     return m;
 }
+
 NgxPoolCleanup_t *NgxMemPool::cleanupAdd(size_t size)
 {
     NgxPoolCleanup_t *c;
@@ -362,14 +290,6 @@ NgxPoolCleanup_t *NgxMemPool::cleanupAdd(size_t size)
     return c;
 }
 
-/**
- * @brief 释放内存池中的指定内存块
- *
- * 该函数用于释放内存池中由指针 `p` 指向的内存块。如果该内存块存在于大内存块链表中，
- * 则将其释放，并将对应的链表节点移动到链表头部，以便后续快速访问。
- *
- * @param p 指向需要释放的内存块的指针
- */
 void NgxMemPool::pfree(void *p)
 {
     NgxPoolLarge_t *prev = nullptr;  // 用于记录当前节点的前一个节点

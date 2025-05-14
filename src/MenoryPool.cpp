@@ -41,16 +41,16 @@ NgxMemPool::NgxMemPool(size_t size)
  */
 NgxMemPool::~NgxMemPool()
 {
-    NgxPool_t *p, *n;          // 用于遍历内存池链表的指针
-    NgxPoolLarge_t *l;         // 用于遍历大内存块链表的指针
-    NgxPoolCleanup_t *c;       // 用于遍历清理回调函数链表的指针
+    NgxPool_t *p, *n;   // 用于遍历内存池链表的指针
+    NgxPoolLarge_t *l;  // 用于遍历大内存块链表的指针
+    NgxPoolCleanup_t *c;// 用于遍历清理回调函数链表的指针
 
     // 遍历并执行所有清理回调函数
     for (c = _pool->cleanup; c; c = c->next)
     {
         if (c->handler)
         {
-            c->handler(c->data); // 调用清理回调函数，释放相关资源
+            c->handler(c->data);// 调用清理回调函数，释放相关资源
         }
     }
 
@@ -59,18 +59,18 @@ NgxMemPool::~NgxMemPool()
     {
         if (l->alloc)
         {
-            free(l->alloc); // 释放大内存块
+            free(l->alloc);// 释放大内存块
         }
     }
 
     // 遍历并释放内存池中的所有内存块
     for (p = _pool, n = _pool->d.next; /* void */; p = n, n = n->d.next)
     {
-        free(p); // 释放当前内存块
+        free(p);// 释放当前内存块
 
         if (n == nullptr)
         {
-            break; // 如果下一个内存块为空，结束循环
+            break;// 如果下一个内存块为空，结束循环
         }
     }
 }

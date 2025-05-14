@@ -53,6 +53,6 @@ namespace net
     private:
         EventLoop *ownerLoop_;// 所属的 EventLoop，用于确保线程安全性
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_POLLER_H

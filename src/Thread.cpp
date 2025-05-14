@@ -41,8 +41,9 @@ Thread::~Thread()
  */
 void Thread::start()
 {
-    if (started_) {
-        return; // 避免重复启动
+    if (started_)
+    {
+        return;// 避免重复启动
     }
 
     // 初始化无名信号量用于线程间同步

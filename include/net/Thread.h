@@ -10,7 +10,8 @@
 #include "SysHeadFile.h"
 
 namespace net
-{ /**
+{
+    /**
  * @brief 线程封装类，实现跨平台线程管理
  *
  * 核心特性：
@@ -53,6 +54,6 @@ namespace net
         std::string threadName_;             // 线程名称（调试用）
         static std::atomic_int threadNum_;   // 全局线程计数器（线程安全）
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_THREAD_H

@@ -82,6 +82,6 @@ namespace net
         std::vector<Functor> pendingFunctors_;   // 待处理的任务函数队列
         std::mutex mutex_;                       // 互斥锁，用于保护待处理任务队列的线程安全
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_EVENTLOOP_H

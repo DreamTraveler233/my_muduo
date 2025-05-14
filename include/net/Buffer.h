@@ -84,6 +84,6 @@ namespace net
         size_t readerIndex_ = kCheapPrepend;// 当前可读位置索引
         size_t writerIndex_ = kCheapPrepend;// 当前可写位置索引
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_BUFFER_H

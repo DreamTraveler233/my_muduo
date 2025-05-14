@@ -10,7 +10,7 @@
 #include <cstring>
 
 // 定义清理操作函数指针类型
-typedef void (*NgxPoolCleanupPt)(void *data);
+using NgxPoolCleanupPt = void (*)(void *data);
 
 /*清理操作结构体*/
 struct NgxPoolCleanup_t

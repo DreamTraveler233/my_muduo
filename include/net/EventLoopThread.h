@@ -45,6 +45,6 @@ namespace net
         std::condition_variable cond_;// 条件变量（同步 loop_ 初始化完成事件）
         ThreadInitCallback callback_; // 线程初始化回调（配置事件循环参数等）
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_EVENTLOOPTHREAD_H

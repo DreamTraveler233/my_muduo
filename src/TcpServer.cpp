@@ -6,8 +6,10 @@
 
 using namespace net;
 
-static EventLoop *CheckLoopNotNull(EventLoop *loop) {
-    if (loop == nullptr) {
+static EventLoop *CheckLoopNotNull(EventLoop *loop)
+{
+    if (loop == nullptr)
+    {
         LOG_FATAL("%s:%s:%d mainLoop is null! \n", __FILE__, __FUNCTION__, errno);
     }
     return loop;
@@ -17,7 +19,8 @@ static EventLoop *CheckLoopNotNull(EventLoop *loop) {
  * @brief 默认的TCP连接回调函数
  *        当TCP连接的状态发生变化时，此函数会被调用它主要用于记录连接的建立或断开
  */
-void defaultConnectionCallback(const TcpConnectionPtr &conn) {
+void defaultConnectionCallback(const TcpConnectionPtr &conn)
+{
     LOG_INFO("%s -> %s is %s",
              conn->getLocalAddress().toIpPort().c_str(),
              conn->getPeerAddress().toIpPort().c_str(),
@@ -28,7 +31,8 @@ void defaultConnectionCallback(const TcpConnectionPtr &conn) {
  * @brief 默认的TCP消息回调函数，用于处理接收到的TCP消息。
  *        该函数会清空接收缓冲区中的所有数据，通常用于忽略接收到的消息或进行简单的数据清理。
  */
-void defaultMessageCallback(const TcpConnectionPtr &, Buffer *buf, Timestamp) {
+void defaultMessageCallback(const TcpConnectionPtr &, Buffer *buf, Timestamp)
+{
     buf->retrieveAll();
 }
 
@@ -44,15 +48,15 @@ TcpServer::TcpServer(EventLoop *loop,
                      const InetAddress &listenAddr,
                      std::string name,
                      TcpServer::Option option)
-        : loop_(CheckLoopNotNull(loop)),                                  // 检查事件循环是否为空，并初始化
-          ipPort_(listenAddr.toIpPort()),                                 // 获取监听地址的 IP 和端口字符串
-          name_(std::move(name)),                                         // 移动服务器名称到成员变量
-          acceptor_(new Acceptor(loop, listenAddr, option == kReusePort)),// 创建 Acceptor 对象，用于接受新连接
-          EventLoopThreadPool_(new EventLoopThreadPool(loop, name_)),     // 创建事件循环线程池，用于处理连接
-          connectionCallback_(defaultConnectionCallback),                 // 初始化默认的连接回调函数
-          messageCallback_(defaultMessageCallback),                       // 初始化默认的消息回调函数
-          nextConnId_(1),                                                 // 初始化下一个连接 ID 为 1
-          started_(0)                                                     // 初始化服务器启动状态为未启动
+    : loop_(CheckLoopNotNull(loop)),                                  // 检查事件循环是否为空，并初始化
+      ipPort_(listenAddr.toIpPort()),                                 // 获取监听地址的 IP 和端口字符串
+      name_(std::move(name)),                                         // 移动服务器名称到成员变量
+      acceptor_(new Acceptor(loop, listenAddr, option == kReusePort)),// 创建 Acceptor 对象，用于接受新连接
+      EventLoopThreadPool_(new EventLoopThreadPool(loop, name_)),     // 创建事件循环线程池，用于处理连接
+      connectionCallback_(defaultConnectionCallback),                 // 初始化默认的连接回调函数
+      messageCallback_(defaultMessageCallback),                       // 初始化默认的消息回调函数
+      nextConnId_(1),                                                 // 初始化下一个连接 ID 为 1
+      started_(0)                                                     // 初始化服务器启动状态为未启动
 {
     // 设置 Acceptor 的新连接回调函数，当有新连接时，调用 TcpServer::newConnection 方法
     acceptor_->setNewConnectionCallback(
@@ -70,12 +74,14 @@ TcpServer::TcpServer(EventLoop *loop,
  * 在析构过程中，会遍历所有已建立的连接，并通过事件循环机制调用每个连接的connectDestroyed方法，
  * 以确保连接资源被安全释放。
  */
-TcpServer::~TcpServer() {
+TcpServer::~TcpServer()
+{
     // 记录日志，表示TcpServer对象正在析构
     LOG_INFO("TcpServer::~TcpServer %s destructing", name_.c_str());
 
     // 遍历所有已建立的连接
-    for (auto &item: connections_) {
+    for (auto &item: connections_)
+    {
         // 创建一个局部的shared_ptr智能指针对象，用于管理TcpConnection对象
         // 当该局部对象超出作用域时，会自动释放TcpConnection对象资源
         TcpConnectionPtr conn(item.second);
@@ -97,7 +103,8 @@ TcpServer::~TcpServer() {
  * @param sockfd 新连接的套接字文件描述符
  * @param peerAddr 对端（客户端）的地址信息
  */
-void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr) {
+void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr)
+{
     // 生成唯一的连接名称，格式为：服务器名称@连接ID（例如：Server@1）
     char buffer[32] = {};
     snprintf(buffer, sizeof(buffer), "@%d", nextConnId_);
@@ -112,7 +119,8 @@ void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr) {
     // 获取本地地址信息
     sockaddr_in local = {};
     socklen_t addrlen = sizeof(local);
-    if (getsockname(sockfd, (sockaddr *) &local, &addrlen) < 0) {
+    if (getsockname(sockfd, (sockaddr *) &local, &addrlen) < 0)
+    {
         LOG_ERROR("TcpServer::newConnection");
     }
     InetAddress localAddr(local);// 将sockaddr_in转换为InetAddress对象
@@ -126,8 +134,8 @@ void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr) {
                                             connName, // 连接名称
                                             sockfd,   // accept返回的connfd
                                             localAddr,// 服务端地址
-                                            peerAddr // accept返回的客户端地址
-    ));
+                                            peerAddr  // accept返回的客户端地址
+                                            ));
     connections_[connName] = conn;// 将连接管理到ConnectionMap中
 
     // 设置用户回调函数：这些回调由TcpServer的用户定义（如业务逻辑处理）
@@ -148,7 +156,8 @@ void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr) {
     // connectEstablished()会将Channel注册到Poller，开始监听可读事件
 }
 
-void TcpServer::removeConnection(const TcpConnectionPtr &conn) {
+void TcpServer::removeConnection(const TcpConnectionPtr &conn)
+{
     loop_->runInLoop([this, conn] { removeConnectionInLoop(conn); });
 }
 
@@ -160,7 +169,8 @@ void TcpServer::removeConnection(const TcpConnectionPtr &conn) {
  *
  * @param conn 要移除的TCP连接的智能指针。
  */
-void TcpServer::removeConnectionInLoop(const TcpConnectionPtr &conn) {
+void TcpServer::removeConnectionInLoop(const TcpConnectionPtr &conn)
+{
     // 日志记录：包含服务器名、连接名、客户端地址、本地地址等关键信息
     LOG_INFO("[%s] REMOVE CONNECTION | ConnName:%s | Client:%s | Local:%s",
              name_.c_str(),
@@ -186,7 +196,8 @@ void TcpServer::removeConnectionInLoop(const TcpConnectionPtr &conn) {
  * 通过计数器确保同一TcpServer对象仅执行一次启动流程。
  * 无参数和返回值。
  */
-void TcpServer::start() {
+void TcpServer::start()
+{
     // 通过原子操作确保启动逻辑只会执行一次
     if (started_++ == 0)// 防止一个TcpServer对象被多次start
     {

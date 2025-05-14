@@ -19,6 +19,6 @@ namespace net
         NonCopyable() = default;
         ~NonCopyable() = default;
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_NONCOPYABLE_H

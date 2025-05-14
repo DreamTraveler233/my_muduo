@@ -7,7 +7,6 @@
 
 #include "NonCopyable.h"
 #include "SysHeadFile.h"
-#include "Timestamp.h"
 
 namespace net
 {

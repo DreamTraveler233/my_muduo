@@ -47,6 +47,6 @@ namespace net
         NewConnectionCallback newConnectionCallback_;// 新连接回调函数
         bool listenning_;                            // 监听状态标志（true=正在监听）
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_ACCEPTOR_H

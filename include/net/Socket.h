@@ -47,6 +47,6 @@ namespace net
     private:
         const int sockfd_;
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_SOCKET_H

@@ -20,6 +20,6 @@ namespace net
     private:
         int64_t microSecondsSinceEpoch_;
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_TIMESTAMP_H

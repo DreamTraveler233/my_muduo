@@ -23,6 +23,6 @@ namespace net
     private:
         sockaddr_in addr_{};
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_INETADDRESS_H

@@ -35,8 +35,6 @@ void Buffer::retrieve(size_t len)
     }
 }
 
-
-
 /**
  * @brief 获取缓冲区中所有可读数据并以字符串形式返回
  *

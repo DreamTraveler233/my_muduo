@@ -16,12 +16,13 @@
 #include "TcpConnection.h"
 
 namespace net
-{ /**
- * @brief TCP服务器类，负责管理网络连接和事件循环分发
- *
- * 该类封装了TCP服务器核心功能，包括端口监听、连接管理、事件回调分发等。
- * 采用主从Reactor模式，主循环处理新连接，子循环处理已建立连接的IO事件。
- */
+{
+    /**
+    * @brief TCP服务器类，负责管理网络连接和事件循环分发
+    *
+    * 该类封装了TCP服务器核心功能，包括端口监听、连接管理、事件回调分发等。
+    * 采用主从Reactor模式，主循环处理新连接，子循环处理已建立连接的IO事件。
+    */
     class TcpServer : NonCopyable
     {
     public:

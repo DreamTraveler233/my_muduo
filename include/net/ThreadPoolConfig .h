@@ -24,6 +24,6 @@ namespace thp
             return threadMaxSize >= initThreadSize && taskQueMaxSize > 0 && threaMaxIdleTime > 0;
         }
     };
-}
+}// namespace thp
 
 #endif//MY_MUDUO_THREADPOOLCONFIG_H

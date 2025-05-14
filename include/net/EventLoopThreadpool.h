@@ -51,6 +51,6 @@ namespace net
         std::vector<std::unique_ptr<EventLoopThread>> thread_;// 子线程对象集合
         std::vector<EventLoop *> loops_;                      // 子线程事件循环指针集合（指向线程栈对象）
     };
-}
+}// namespace net
 
 #endif//MY_MUDUO_EVENTLOOPTHREADPOOL_H
